@@ -13,6 +13,9 @@ class Buffer:
         self.asq = asq
         self.type = type
 
+    def get_type_string(self) -> str:
+        return f'{self.asq.value} {self.type}*'
+
 @dataclass
 class BufferRange:
     buffer: Buffer
