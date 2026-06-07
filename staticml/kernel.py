@@ -20,7 +20,7 @@ class Kernel:
         args = ',\n'.join(f'{buffer.get_type_string()} {buffer.name}' for buffer in self.buffers)
 
         _source = '\n'.join((
-            '__kernel compute_kernel(',
+            '__kernel void compute_kernel(',
             indent(args, '\t'),
             ') {',
             indent(body, '\t'),
