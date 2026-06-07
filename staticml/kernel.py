@@ -28,3 +28,14 @@ class Kernel:
         ))
 
         return _source
+
+    def get_source(self) -> str:
+        sources = {}
+        for op in self.operations:
+            _key = op.get_identifier()
+            if _key in sources: continue
+            sources[_key] = op.get_source()
+
+        sources['_kernel'] = self.get_definition()
+
+        return '\n\n'.join(sources.values())
