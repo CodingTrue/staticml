@@ -7,10 +7,11 @@ class ASQ(Enum):
     STATIC = '__constant'
 
 class Buffer:
-    def __init__(self, name: str, asq: ASQ, type: str):
+    def __init__(self, name: str, asq: ASQ, type: str, max_size: int = -1):
         self.name = name
         self.asq = asq
         self.type = type
+        self.max_size = max_size
 
     def get_type_string(self) -> str:
         return f'{self.asq.value} {self.type}*'
@@ -27,9 +28,15 @@ class Allocator:
         self.sections = []
 
     def allocate(self, size: int) -> BufferRange:
+        if size <= 0:
+            return
+
         offset = 0
         index = 0
         last_end = -1
+
+        if (len(self.sections) > 0 and self.sections[-1][1] + size >= self.buffer.max_size) or size > self.buffer.max_size:
+            raise RuntimeError(f"Allocator can't allocate more space than the size of the buffer ({self.buffer.max_size})")
 
         for i, (start, end) in enumerate(self.sections):
             diff = start - last_end - 1
