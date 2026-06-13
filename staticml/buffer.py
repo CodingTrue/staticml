@@ -6,7 +6,6 @@ class ASQ(Enum):
     DYNAMIC = '__global'
     STATIC = '__constant'
 
-@dataclass
 class Buffer:
     def __init__(self, name: str, asq: ASQ, type: str):
         self.name = name
