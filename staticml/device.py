@@ -21,6 +21,16 @@ class Device:
 
         self._display_name = _get_device_name(cl_device=self.cl_device)
 
+    def get_cl_context(self) -> cl.Context:
+        if self.cl_context is None:
+            raise RuntimeError('Device context was not initialized yet')
+        return self.cl_context
+
+    def get_cl_queue(self) -> cl.Context:
+        if self.cl_context is None:
+            raise RuntimeError('Device queue was not initialized yet')
+        return self.cl_queue
+
     def get_name(self) -> str:
         return self._display_name
 
