@@ -33,7 +33,7 @@ class Device:
         return self
 
     @classmethod
-    def get_actvie(cls) -> Device:
+    def get_active(cls) -> Device:
         if not cls._active:
             raise RuntimeError('No device is currently set as active')
         return cls._active
