@@ -21,6 +21,9 @@ class Device:
 
         self._display_name = _get_device_name(cl_device=self.cl_device)
 
+    def get_max_allocation_size(self) -> int:
+        return self.cl_device.max_mem_alloc_size
+
     def get_cl_context(self) -> cl.Context:
         if self.cl_context is None:
             raise RuntimeError('Device context was not initialized yet')

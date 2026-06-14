@@ -92,3 +92,26 @@ class Operation:
 
     def allocate(self, allocator: Allocator):
         return
+
+    def get_work_size(self) -> tuple[int, ...]:
+        return (-1, -1, -1)
+
+class AXBZOperation(Operation):
+    def __init__(self, a: Number, x: Tensor, b: Number, z: Tensor):
+        super().__init__(identifier='axb', arguments={
+            'a': float(a),
+            'x': x,
+            'b': float(b),
+            'z': z
+        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = a * x[x.offset + xid] + b;')
+
+        self.x = x
+        self.z = z
+
+    def allocate(self, allocator: Allocator):
+        _buffer = allocator.allocate(size=self.x.get_size())
+
+        self.z.set_buffer_view(view=_buffer)
+
+    def get_work_size(self) -> tuple[int, ...]:
+        return (self.x.get_size(), 1, 1)

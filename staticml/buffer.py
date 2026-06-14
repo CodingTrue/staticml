@@ -1,5 +1,9 @@
+import pyopencl as cl
+
 from dataclasses import dataclass
 from enum import Enum
+
+from staticml.device import Device
 
 
 class ASQ(Enum):
@@ -12,6 +16,31 @@ class Buffer:
         self.asq = asq
         self.type = type
         self.max_size = max_size
+
+        self.cl_buffer: cl.Buffer = None
+
+    def get_cl_buffer(self) -> cl.Buffer:
+        if self.cl_buffer is None:
+            raise RuntimeError('Buffer was not initialized yet')
+        return self.cl_buffer
+
+    def init_cl_buffer(self, size: int | None = None, device: Device | None = None):
+        _device = device or Device.get_active()
+        _size = size or self.max_size
+
+        if _size > self.max_size:
+            raise ValueError(f'Initialization size must not be greate than max size ({self.max_size})')
+
+        if _size <= 0:
+            raise ValueError('Buffer must not be initialized with a size less or equal than zero')
+
+        _flags = cl.mem_flags.READ_ONLY if self.asq == ASQ.STATIC else cl.mem_flags.WRITE_ONLY
+
+        self.cl_buffer = cl.Buffer(
+            context=_device.get_cl_context(),
+            flags=_flags | cl.mem_flags.ALLOC_HOST_PTR,
+            size=_size * 4
+        )
 
     def get_type_string(self) -> str:
         return f'{self.asq.value} {self.type}*'
@@ -26,6 +55,10 @@ class Allocator:
     def __init__(self, buffer: Buffer):
         self.buffer = buffer
         self.sections = []
+        self.max_end = 0
+
+    def get_minimum_size(self) -> int:
+        return self.max_end + 1
 
     def allocate(self, size: int) -> BufferRange:
         if size <= 0:
@@ -51,6 +84,10 @@ class Allocator:
             last_end = end
 
         self.sections.insert(index, (offset, offset + size - 1))
+
+        _end = self.sections[-1][1]
+        self.max_end = _end if _end > self.max_end else self.max_end
+
         return BufferRange(buffer=self.buffer, size=size, offset=offset)
 
     def free(self, range: BufferRange):
