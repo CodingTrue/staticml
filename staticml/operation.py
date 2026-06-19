@@ -115,3 +115,62 @@ class AXBZOperation(Operation):
 
     def get_work_size(self) -> tuple[int, ...]:
         return (self.x.get_size(), 1, 1)
+
+class AXPBYZOperation(Operation):
+    def __init__(self, a: Number, x: Tensor, b: Number, y: Tensor, z: Tensor):
+
+        super().__init__(identifier='axpby', arguments={
+            'a': float(a),
+            'x': x,
+            'b': float(b),
+            'y': y,
+            'z': z
+        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = a * x[x.offset + xid] + b * y[y.offset + xid];')
+        self.min_size = min(x.get_size(), y.get_size())
+        self.z = z
+
+    def allocate(self, allocator: Allocator):
+        _buffer = allocator.allocate(size=self.min_size)
+
+        self.z.set_buffer_view(view=_buffer)
+
+    def get_work_size(self) -> tuple[int, ...]:
+        return (self.min_size, 1, 1)
+
+class XMULYOperation(Operation):
+    def __init__(self, x: Tensor, y: Tensor, z: Tensor):
+
+        super().__init__(identifier='xmuly', arguments={
+            'x': x,
+            'y': y,
+            'z': z
+        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = x[x.offset + xid] * y[y.offset + xid];')
+        self.min_size = min(x.get_size(), y.get_size())
+        self.z = z
+
+    def allocate(self, allocator: Allocator):
+        _buffer = allocator.allocate(size=self.min_size)
+
+        self.z.set_buffer_view(view=_buffer)
+
+    def get_work_size(self) -> tuple[int, ...]:
+        return (self.min_size, 1, 1)
+
+class XDIVYOperation(Operation):
+    def __init__(self, x: Tensor, y: Tensor, z: Tensor):
+
+        super().__init__(identifier='xdivy', arguments={
+            'x': x,
+            'y': y,
+            'z': z
+        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = x[x.offset + xid] / y[y.offset + xid];')
+        self.min_size = min(x.get_size(), y.get_size())
+        self.z = z
+
+    def allocate(self, allocator: Allocator):
+        _buffer = allocator.allocate(size=self.min_size)
+
+        self.z.set_buffer_view(view=_buffer)
+
+    def get_work_size(self) -> tuple[int, ...]:
+        return (self.min_size, 1, 1)

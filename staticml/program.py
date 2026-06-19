@@ -66,7 +66,7 @@ class Program:
             cl.enqueue_copy(
                 queue=self._device.get_cl_queue(),
                 dest=self.static_allocator.buffer.get_cl_buffer(),
-                src=tensor.data, dst_offset=tensor.buffer_view.offset
+                src=tensor.data, dst_offset=tensor.buffer_view.offset * 4
             )
 
         cl.enqueue_nd_range_kernel(
