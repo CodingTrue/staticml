@@ -79,7 +79,8 @@ class Program:
         dynamic_data = np.empty(self.kernel.work_size[::-1], dtype=np.float32)
         cl.enqueue_copy(
             queue=self._device.get_cl_queue(),
-            dest=dynamic_data, src=self.dynamic_allocator.buffer.get_cl_buffer()
+            dest=dynamic_data, src=self.dynamic_allocator.buffer.get_cl_buffer(),
+            src_offset=self.graph.dynamic_tensors[-1].buffer_view.offset * 4
         )
 
         return Tensor(data=dynamic_data)
