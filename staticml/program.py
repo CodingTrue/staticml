@@ -7,49 +7,11 @@ from staticml.buffer import Allocator, Buffer, ASQ
 from staticml.device import Device
 from staticml.graph import ComputeGraph
 from staticml.kernel import Kernel
+from staticml.lowering import lower_tensor
 from staticml.operation import Operation, AXBZOperation
 from staticml.tensor import Tensor, TensorOperation
 
 
-def _align_scalar(a, b) -> tuple:
-    if isinstance(a, Number):
-        return b, a
-    return a, b
-
-def _handle_add(tensor: Tensor) -> Operation:
-    a, b = _align_scalar(*tensor.children)
-    if isinstance(b, Tensor):
-        raise NotImplementedError("Tensor + tensor operations are not supported yet")
-
-    return AXBZOperation(1, a, b, tensor)
-
-def _handle_sub(tensor: Tensor) -> Operation:
-    a, b = _align_scalar(*tensor.children)
-    if isinstance(b, Tensor):
-        raise NotImplementedError("Tensor - tensor operations are not supported yet")
-
-    return AXBZOperation(1, a, -b, tensor)
-
-def _handle_mul(tensor: Tensor) -> Operation:
-    a, b = _align_scalar(*tensor.children)
-    if isinstance(b, Tensor):
-        raise NotImplementedError("Tensor * tensor operations are not supported yet")
-
-    return AXBZOperation(b, a, 0, tensor)
-
-def _handle_div(tensor: Tensor) -> Operation:
-    a, b = _align_scalar(*tensor.children)
-    if isinstance(b, Tensor):
-        raise NotImplementedError("Tensor / tensor operations are not supported yet")
-
-    return AXBZOperation(1 / b, a, 0, tensor)
-
-TENSOROP_HANDLES = {
-    TensorOperation.ADD:        _handle_add,
-    TensorOperation.SUBTRACT:   _handle_sub,
-    TensorOperation.MULTIPLY:   _handle_mul,
-    TensorOperation.DIVIDE:     _handle_div,
-}
 
 class Program:
     def __init__(self, graph: ComputeGraph, device: Device | None = None):
@@ -81,7 +43,7 @@ class Program:
             tensor.set_buffer_view(view=self.static_allocator.allocate(size=tensor.get_size()))
 
         for tensor in self.graph.dynamic_tensors:
-            _op = TENSOROP_HANDLES[tensor.operation](tensor)
+            _op = lower_tensor(tensor=tensor)
             _op.allocate(allocator=self.dynamic_allocator)
 
             self.kernel.add_operation(operation=_op)
