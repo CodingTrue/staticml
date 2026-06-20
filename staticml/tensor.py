@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from numbers import Number
 from typing import Any, Sequence
 
 import numpy as np
@@ -72,7 +73,16 @@ class Tensor:
     __rmul__ = __mul__
     __rtruediv__ = __truediv__
 
-def _get_common_shape(a: Tensor, b: Tensor) -> tuple[int, ...]:
+def _get_common_shape(a: Tensor | Number, b: Tensor | Number) -> tuple[int, ...]:
+    a_is_tensor = Tensor.is_tensor(a)
+    b_is_tensor = Tensor.is_tensor(b)
+
+    if a_is_tensor and not b_is_tensor:
+        return a.get_shape()
+
+    if b_is_tensor and not a_is_tensor:
+        return b.get_shape()
+
     a_shape = a.get_shape()
     b_shape = b.get_shape()
 
