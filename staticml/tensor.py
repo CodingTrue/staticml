@@ -13,8 +13,14 @@ class TensorOperation(Enum):
     DIVIDE = auto()
 
 class Tensor:
-    def __init__(self, data: Sequence[Any] | None = None, operation: TensorOperation | None = None, children: tuple | None = None):
-        self.data = (np.asarray(data) if data is not None else np.empty(0)).astype(np.float32)
+    def __init__(self,
+                 data: Sequence[Any] | None = None,
+                 operation: TensorOperation | None = None,
+                 children: tuple | None = None,
+                 shape: tuple[int, ...] | None = None
+    ):
+        self._data = (np.asarray(data) if data is not None else np.empty(0)).astype(np.float32)
+        self._shape = shape or self.data.shape
         self.operation = operation
         self.children = children
         self.buffer_view: BufferRange = None
@@ -29,21 +35,48 @@ class Tensor:
         return self.buffer_view is not None
 
     def get_size(self) -> int:
-        return self.buffer_view.size if self.is_allocated() else self.data.size
+        return self.buffer_view.size if self.is_allocated() else self._data.size
 
     def is_static(self) -> bool:
         return self.operation is None
+
+    def get_shape(self) -> tuple[int, ...]:
+        return self._shape
+
+    @property
+    def data(self) -> np.ndarray:
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        if not isinstance(value, np.ndarray):
+            raise ValueError(f"Can't set tensor data to type '{type(value)}'")
+        self._data = value
+        self._shape = self._data.shape
 
     @staticmethod
     def is_tensor(o: Any) -> bool:
         return isinstance(o, Tensor)
 
-    def __add__(self, other): return Tensor(operation=TensorOperation.ADD, children=(self, other))
-    def __sub__(self, other): return Tensor(operation=TensorOperation.SUBTRACT, children=(self, other))
-    def __mul__(self, other): return Tensor(operation=TensorOperation.MULTIPLY, children=(self, other))
-    def __truediv__(self, other): return Tensor(operation=TensorOperation.DIVIDE, children=(self, other))
+    def __add__(self, other):
+        return Tensor(operation=TensorOperation.ADD, children=(self, other), shape=_get_common_shape(self, other))
+    def __sub__(self, other):
+        return Tensor(operation=TensorOperation.SUBTRACT, children=(self, other), shape=_get_common_shape(self, other))
+    def __mul__(self, other):
+        return Tensor(operation=TensorOperation.MULTIPLY, children=(self, other), shape=_get_common_shape(self, other))
+    def __truediv__(self, other):
+        return Tensor(operation=TensorOperation.DIVIDE, children=(self, other), shape=_get_common_shape(self, other))
 
     __radd__ = __add__
     __rsub__ = __sub__
     __rmul__ = __mul__
     __rtruediv__ = __truediv__
+
+def _get_common_shape(a: Tensor, b: Tensor) -> tuple[int, ...]:
+    a_shape = a.get_shape()
+    b_shape = b.get_shape()
+
+    if len(a_shape) != len(b_shape):
+        raise RuntimeError(f"Can't find common shape for mismatched dimensions {a_shape} and {b_shape}")
+
+    return min(a_shape, b_shape)
