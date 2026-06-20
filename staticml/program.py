@@ -84,5 +84,5 @@ class Program:
             src_offset=_last_tensor.buffer_view.offset * 4
         )
 
-        dynamic_data = dynamic_data.reshape(_last_tensor.get_shape())
-        return Tensor(data=dynamic_data)
+        _last_tensor.data = dynamic_data.reshape(_last_tensor.get_shape())
+        return _last_tensor
