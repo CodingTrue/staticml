@@ -15,6 +15,9 @@ from staticml.tensor import Tensor, TensorOperation
 
 class Program:
     def __init__(self, graph: ComputeGraph, device: Device | None = None):
+        if len(graph.dynamic_tensors) == 0:
+            raise RuntimeError('Creating a program with an empty compute graph leads to ambiguity for return values')
+
         self._device = device or Device.get_active()
         self.graph: ComputeGraph = graph
 
