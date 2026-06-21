@@ -12,7 +12,6 @@ from staticml.operation import Operation, AXBZOperation
 from staticml.tensor import Tensor, TensorOperation
 
 
-
 class Program:
     def __init__(self, graph: ComputeGraph, device: Device | None = None):
         if len(graph.dynamic_tensors) == 0:
@@ -28,7 +27,7 @@ class Program:
         self.dynamic_allocator = Allocator(buffer=_db)
         self.static_allocator = Allocator(buffer=_sb)
 
-        self.kernel: Kernel = Kernel(buffers=[self.dynamic_allocator.buffer, self.static_allocator.buffer])
+        self.kernels: list[Kernel] = []
 
     def init_buffers(self):
         self.dynamic_allocator.buffer.init_cl_buffer(
@@ -42,6 +41,8 @@ class Program:
         )
 
     def allocate_tensors(self):
+        last_work_size = (0, 0, 0)
+
         for tensor in self.graph.static_tensors:
             tensor.set_buffer_view(view=self.static_allocator.allocate(size=tensor.get_size()))
 
@@ -49,7 +50,15 @@ class Program:
             _op = lower_tensor(tensor=tensor)
             _op.allocate(allocator=self.dynamic_allocator)
 
-            self.kernel.add_operation(operation=_op)
+            op_work_size = _op.get_work_size()
+            if op_work_size > last_work_size:
+                self.kernels.append(Kernel(
+                    buffers=[self.dynamic_allocator.buffer, self.static_allocator.buffer],
+                    works_size=op_work_size
+                ))
+
+            kernel: Kernel = self.kernels[-1]
+            kernel.add_operation(operation=_op)
 
             deaths = self.graph.liftetimes.get(tensor)
             if deaths is None: continue
@@ -61,7 +70,9 @@ class Program:
     def build(self) -> Kernel:
         self.allocate_tensors()
         self.init_buffers()
-        self.kernel.compile()
+
+        for kernel in self.kernels:
+            kernel.compile()
 
         return self
 
@@ -73,15 +84,16 @@ class Program:
                 src=tensor.data, dst_offset=tensor.buffer_view.offset * 4
             )
 
-        cl.enqueue_nd_range_kernel(
-            queue=self._device.get_cl_queue(),
-            kernel=self.kernel.get_cl_kernel(),
-            global_work_size=self.kernel.work_size,
-            local_work_size=None
-        )
+        for kernel in self.kernels:
+            cl.enqueue_nd_range_kernel(
+                queue=self._device.get_cl_queue(),
+                kernel=kernel.get_cl_kernel(),
+                global_work_size=kernel.work_size,
+                local_work_size=None
+            ).wait()
 
         _last_tensor = self.graph.dynamic_tensors[-1]
-        dynamic_data = np.empty(self.kernel.work_size[::-1], dtype=np.float32)
+        dynamic_data = np.empty(self.kernels[-1].work_size[::-1], dtype=np.float32)
         cl.enqueue_copy(
             queue=self._device.get_cl_queue(),
             dest=dynamic_data, src=self.dynamic_allocator.buffer.get_cl_buffer(),

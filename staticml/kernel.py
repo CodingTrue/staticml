@@ -7,11 +7,11 @@ from staticml.device import Device
 from staticml.operation import Operation
 
 class Kernel:
-    def __init__(self, buffers: list[Buffer] | None = None, operations: list[Operation] | None = None):
+    def __init__(self, buffers: list[Buffer] | None = None, works_size: tuple[int, ...] | None = None):
         self.buffers: list[Buffer] = buffers or []
-        self.operations: list[Operation] = operations or []
+        self.operations: list[Operation] = []
         self.cl_kernel: cl.Kernel = None
-        self.work_size = None
+        self.work_size = works_size or (0, 0, 0)
 
     def get_cl_kernel(self) -> cl.Kernel:
         if self.cl_kernel is None:
@@ -19,14 +19,6 @@ class Kernel:
         return self.cl_kernel
 
     def add_operation(self, operation: Operation):
-        _work_size = operation.get_work_size()
-
-        if self.work_size is None:
-            self.work_size = _work_size
-
-        if _work_size > self.work_size:
-            raise ValueError(f"Operation work-size '{_work_size}' exceeds epxected work-size of '{self.work_size}'")
-
         self.operations.append(operation)
 
     def get_definition(self) -> str:
