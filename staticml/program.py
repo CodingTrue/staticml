@@ -52,6 +52,7 @@ class Program:
             if deaths is None: continue
 
             for death in deaths:
+                if death.is_static(): continue
                 self.dynamic_allocator.free(range=death.buffer_view)
 
     def build(self) -> Kernel:
