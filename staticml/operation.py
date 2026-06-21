@@ -12,6 +12,15 @@ from staticml.tensor import Tensor
 def _hash(s: str) -> str:
     return blake2s(s.encode(), digest_size=6).hexdigest()
 
+def _shape_size(shape: tuple[int, ...]) -> int:
+    result = None
+    for dim in shape:
+        if result is None:
+            result = dim
+        else:
+            result *= dim
+    return result
+
 class Operation:
     def __init__(self, identifier: str = '', arguments: dict[str, Any] | None = None, body: str = ''):
         self.arguments = arguments or {}
@@ -158,7 +167,6 @@ class XMULYOperation(Operation):
 
 class XDIVYOperation(Operation):
     def __init__(self, x: Tensor, y: Tensor, z: Tensor):
-
         super().__init__(identifier='xdivy', arguments={
             'x': x,
             'y': y,
@@ -174,3 +182,34 @@ class XDIVYOperation(Operation):
 
     def get_work_size(self) -> tuple[int, ...]:
         return (self.min_size, 1, 1)
+
+class MATMULOperation(Operation):
+    def __init__(self, a: Tensor, b: Tensor, z: Tensor):
+        super().__init__(identifier='matmul', arguments={
+            'a': a,
+            'a_x': a.get_shape()[1],
+            'b': b,
+            'z': z
+        }, body="""int xid = get_global_id(0);
+            int yid = get_global_id(1);
+            
+            int xsize = get_global_size(0);
+            int ysize = get_global_size(1);
+            
+            float result = 0.0;
+            for (int i = 0; i < a_x; i++) {
+                result += a[a.offset + yid * a_x + i] * b[b.offset + i * xsize + xid];
+            }
+            
+            z[z.offset + yid * xsize + xid] = result;
+            """
+        )
+        self.z = z
+
+    def allocate(self, allocator: Allocator):
+        _buffer = allocator.allocate(size=_shape_size(self.z.get_shape()))
+
+        self.z.set_buffer_view(view=_buffer)
+
+    def get_work_size(self) -> tuple[int, ...]:
+        return self.z.get_shape()[::-1]

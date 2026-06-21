@@ -1,6 +1,6 @@
 from numbers import Number
 
-from staticml.operation import Operation, AXBZOperation, AXPBYZOperation, XMULYOperation, XDIVYOperation
+from staticml.operation import *
 from staticml.tensor import Tensor, TensorOperation
 
 def _align_scalar(a, b) -> tuple:
@@ -36,11 +36,16 @@ def _handle_div(tensor: Tensor) -> Operation:
 
     return AXBZOperation(1 / b, a, 0, tensor)
 
+def _handle_matmul(tensor: Tensor) -> Operation:
+    a, b = tensor.children
+    return MATMULOperation(a, b, tensor)
+
 TENSOROP_HANDLES = {
     TensorOperation.ADD:        _handle_add,
     TensorOperation.SUBTRACT:   _handle_sub,
     TensorOperation.MULTIPLY:   _handle_mul,
     TensorOperation.DIVIDE:     _handle_div,
+    TensorOperation.MATMUL:     _handle_matmul,
 }
 
 def lower_tensor(tensor: Tensor) -> Operation:

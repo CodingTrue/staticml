@@ -12,6 +12,7 @@ class TensorOperation(Enum):
     SUBTRACT = auto()
     MULTIPLY = auto()
     DIVIDE = auto()
+    MATMUL = auto()
 
 class Tensor:
     def __init__(self,
@@ -67,6 +68,17 @@ class Tensor:
         return Tensor(operation=TensorOperation.MULTIPLY, children=(self, other), shape=_get_common_shape(self, other))
     def __truediv__(self, other):
         return Tensor(operation=TensorOperation.DIVIDE, children=(self, other), shape=_get_common_shape(self, other))
+    def __matmul__(self, other):
+        if not Tensor.is_tensor(other):
+            raise RuntimeError(f"Can't matmul a tensor with type {type(other)}")
+
+        shape_a = self.get_shape()[::-1]
+        shape_b = other.get_shape()[::-1]
+
+        if shape_b[1] != shape_a[0]:
+            raise RuntimeError(f"Can't matmul tensors with dimension {shape_b}")
+
+        return Tensor(operation=TensorOperation.MATMUL, children=(self, other), shape=(shape_a[1], shape_b[0]))
 
     __radd__ = __add__
     __rsub__ = __sub__
