@@ -25,14 +25,14 @@ def _handle_sub(tensor: Tensor) -> Operation:
 def _handle_mul(tensor: Tensor) -> Operation:
     a, b = _align_scalar(*tensor.children)
     if isinstance(b, Tensor):
-        return XMULYOperation(a, b, tensor)
+        return ElementwiseOperation(a, '*', b, tensor)
 
     return AXBZOperation(b, a, 0, tensor)
 
 def _handle_div(tensor: Tensor) -> Operation:
     a, b = _align_scalar(*tensor.children)
     if isinstance(b, Tensor):
-        return XDIVYOperation(a, b, tensor)
+        return ElementwiseOperation(a, '/', b, tensor)
 
     return AXBZOperation(1 / b, a, 0, tensor)
 

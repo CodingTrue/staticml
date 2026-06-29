@@ -9,6 +9,16 @@ from staticml.buffer import Allocator, BufferRange
 from staticml.tensor import Tensor
 
 
+def _operation_layout(a: Tensor, b: Tensor) -> tuple[int, int, int]:
+    a_shape = a.get_shape()
+    b_shape = b.get_shape()
+
+    is_greater = a_shape[1] > b_shape[1]
+
+    a_row, b_row = (b.get_size(), a_shape[2]) if is_greater else (a.get_size(), b_shape[2])
+
+    return max(a.get_size(), b.get_size()), a_row, b_row
+
 def _hash(s: str) -> str:
     return blake2s(s.encode(), digest_size=6).hexdigest()
 
@@ -127,67 +137,54 @@ class AXBZOperation(Operation):
 
 class AXPBYZOperation(Operation):
     def __init__(self, a: Number, x: Tensor, b: Number, y: Tensor, z: Tensor):
+        self.size, x_row, y_row = _operation_layout(x, y)
 
         super().__init__(identifier='axpby', arguments={
             'a': float(a),
             'x': x,
             'b': float(b),
             'y': y,
+            'x_row': int(x_row),
+            'y_row': int(y_row),
             'z': z
-        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = a * x[x.offset + xid] + b * y[y.offset + xid];')
-        self.min_size = min(x.get_size(), y.get_size())
+        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = a * x[x.offset + (xid % x_row)] + b * y[y.offset + (xid % y_row)];')
         self.z = z
 
     def allocate(self, allocator: Allocator):
-        _buffer = allocator.allocate(size=self.min_size)
+        _buffer = allocator.allocate(size=self.size)
 
         self.z.set_buffer_view(view=_buffer)
 
     def get_work_size(self) -> tuple[int, ...]:
-        return (self.min_size, 1, 1)
+        return (self.size, 1, 1)
 
-class XMULYOperation(Operation):
-    def __init__(self, x: Tensor, y: Tensor, z: Tensor):
+class ElementwiseOperation(Operation):
+    def __init__(self, x: Tensor, operation: str, y: Tensor, z: Tensor):
+        self.size, x_row, y_row = _operation_layout(x, y)
+        hash = _hash(operation)
 
-        super().__init__(identifier='xmuly', arguments={
+        super().__init__(identifier=f'elemtwise_{hash}', arguments={
             'x': x,
             'y': y,
+            'x_row': int(x_row),
+            'y_row': int(y_row),
             'z': z
-        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = x[x.offset + xid] * y[y.offset + xid];')
-        self.min_size = min(x.get_size(), y.get_size())
+        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = x[x.offset + (xid % x_row)] * y[y.offset + (xid % y_row)];')
         self.z = z
 
     def allocate(self, allocator: Allocator):
-        _buffer = allocator.allocate(size=self.min_size)
+        _buffer = allocator.allocate(size=self.size)
 
         self.z.set_buffer_view(view=_buffer)
 
     def get_work_size(self) -> tuple[int, ...]:
-        return (self.min_size, 1, 1)
-
-class XDIVYOperation(Operation):
-    def __init__(self, x: Tensor, y: Tensor, z: Tensor):
-        super().__init__(identifier='xdivy', arguments={
-            'x': x,
-            'y': y,
-            'z': z
-        }, body='int xid = get_global_id(0);\nz[z.offset + xid] = x[x.offset + xid] / y[y.offset + xid];')
-        self.min_size = min(x.get_size(), y.get_size())
-        self.z = z
-
-    def allocate(self, allocator: Allocator):
-        _buffer = allocator.allocate(size=self.min_size)
-
-        self.z.set_buffer_view(view=_buffer)
-
-    def get_work_size(self) -> tuple[int, ...]:
-        return (self.min_size, 1, 1)
+        return (self.size, 1, 1)
 
 class MATMULOperation(Operation):
     def __init__(self, a: Tensor, b: Tensor, z: Tensor):
         super().__init__(identifier='matmul', arguments={
             'a': a,
-            'a_x': a.get_shape()[1],
+            'a_x': a.get_shape()[2],
             'b': b,
             'z': z
         }, body="""int xid = get_global_id(0);

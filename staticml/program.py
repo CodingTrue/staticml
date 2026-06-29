@@ -93,7 +93,7 @@ class Program:
             ).wait()
 
         _last_tensor = self.graph.dynamic_tensors[-1]
-        dynamic_data = np.empty(self.kernels[-1].work_size[::-1], dtype=np.float32)
+        dynamic_data = np.empty(_last_tensor.get_shape(), dtype=np.float32)
         cl.enqueue_copy(
             queue=self._device.get_cl_queue(),
             dest=dynamic_data, src=self.dynamic_allocator.buffer.get_cl_buffer(),

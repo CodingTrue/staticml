@@ -7,6 +7,11 @@ import numpy as np
 from staticml.buffer import BufferRange
 
 
+def _pad_shape(shape: tuple[int, ...]) -> tuple[int, int, int]:
+    len_shape = len(shape)
+    if len_shape >= 3: return shape
+    return (*(1 for _ in range(3 - len_shape)), *shape)
+
 class TensorOperation(Enum):
     ADD = auto()
     SUBTRACT = auto()
@@ -22,7 +27,8 @@ class Tensor:
                  shape: tuple[int, ...] | None = None
     ):
         self._data = (np.asarray(data) if data is not None else np.empty(0)).astype(np.float32)
-        self._shape = shape or self.data.shape
+        self._shape = shape or self._data.shape
+
         self.operation = operation
         self.children = children
         self.buffer_view: BufferRange = None
@@ -43,7 +49,7 @@ class Tensor:
         return self.operation is None
 
     def get_shape(self) -> tuple[int, ...]:
-        return self._shape
+        return _pad_shape(self._shape)
 
     @property
     def data(self) -> np.ndarray:
@@ -61,13 +67,13 @@ class Tensor:
         return isinstance(o, Tensor)
 
     def __add__(self, other):
-        return Tensor(operation=TensorOperation.ADD, children=(self, other), shape=_get_common_shape(self, other))
+        return Tensor(operation=TensorOperation.ADD, children=(self, other), shape=_broadcast_shape(self, other))
     def __sub__(self, other):
-        return Tensor(operation=TensorOperation.SUBTRACT, children=(self, other), shape=_get_common_shape(self, other))
+        return Tensor(operation=TensorOperation.SUBTRACT, children=(self, other), shape=_broadcast_shape(self, other))
     def __mul__(self, other):
-        return Tensor(operation=TensorOperation.MULTIPLY, children=(self, other), shape=_get_common_shape(self, other))
+        return Tensor(operation=TensorOperation.MULTIPLY, children=(self, other), shape=_broadcast_shape(self, other))
     def __truediv__(self, other):
-        return Tensor(operation=TensorOperation.DIVIDE, children=(self, other), shape=_get_common_shape(self, other))
+        return Tensor(operation=TensorOperation.DIVIDE, children=(self, other), shape=_broadcast_shape(self, other))
     def __matmul__(self, other):
         if not Tensor.is_tensor(other):
             raise RuntimeError(f"Can't matmul a tensor with type {type(other)}")
@@ -78,14 +84,15 @@ class Tensor:
         if shape_b[1] != shape_a[0]:
             raise RuntimeError(f"Can't matmul tensors with dimension {shape_b}")
 
-        return Tensor(operation=TensorOperation.MATMUL, children=(self, other), shape=(shape_a[1], shape_b[0]))
+        _shape = (shape_b[0],) if shape_a[1] == 1 else (shape_a[1], shape_b[0])
+        return Tensor(operation=TensorOperation.MATMUL, children=(self, other), shape=_shape)
 
     __radd__ = __add__
     __rsub__ = __sub__
     __rmul__ = __mul__
     __rtruediv__ = __truediv__
 
-def _get_common_shape(a: Tensor | Number, b: Tensor | Number) -> tuple[int, ...]:
+def _broadcast_shape(a: Tensor | Number, b: Tensor | Number) -> tuple[int, ...]:
     a_is_tensor = Tensor.is_tensor(a)
     b_is_tensor = Tensor.is_tensor(b)
 
@@ -98,7 +105,12 @@ def _get_common_shape(a: Tensor | Number, b: Tensor | Number) -> tuple[int, ...]
     a_shape = a.get_shape()
     b_shape = b.get_shape()
 
-    if len(a_shape) != len(b_shape):
-        raise RuntimeError(f"Can't find common shape for mismatched dimensions {a_shape} and {b_shape}")
+    least, most = (a_shape, b_shape) if a_shape < b_shape else (b_shape, a_shape)
 
-    return min(a_shape, b_shape)
+    if least[2] == 1:
+        return most
+
+    if least[2] == most[2] and least[1] == 1:
+        return most
+
+    raise RuntimeError(f"Can't broadcast shape {least} with {most}")
