@@ -100,5 +100,5 @@ class Program:
             src_offset=_last_tensor.buffer_view.offset * 4
         )
 
-        _last_tensor.data = dynamic_data.reshape(_last_tensor.get_shape())
+        _last_tensor.data = dynamic_data.reshape(_last_tensor.get_real_shape())
         return _last_tensor

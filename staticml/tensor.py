@@ -51,6 +51,9 @@ class Tensor:
     def get_shape(self) -> tuple[int, ...]:
         return _pad_shape(self._shape)
 
+    def get_real_shape(self) -> tuple[int, ...]:
+        return self._shape
+
     @property
     def data(self) -> np.ndarray:
         return self._data
@@ -104,13 +107,14 @@ def _broadcast_shape(a: Tensor | Number, b: Tensor | Number) -> tuple[int, ...]:
 
     a_shape = a.get_shape()
     b_shape = b.get_shape()
+    max_dim = max(len(a._shape), len(b._shape))
 
     least, most = (a_shape, b_shape) if a_shape < b_shape else (b_shape, a_shape)
 
     if least[2] == 1:
-        return most
+        return most[3-max_dim:]
 
     if least[2] == most[2] and least[1] == 1:
-        return most
+        return most[3-max_dim:]
 
     raise RuntimeError(f"Can't broadcast shape {least} with {most}")
