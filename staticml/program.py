@@ -56,6 +56,7 @@ class Program:
                     buffers=[self.dynamic_allocator.buffer, self.static_allocator.buffer],
                     works_size=op_work_size
                 ))
+                last_work_size = op_work_size
 
             kernel: Kernel = self.kernels[-1]
             kernel.add_operation(operation=_op)
