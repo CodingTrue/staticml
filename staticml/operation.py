@@ -15,9 +15,10 @@ def _operation_layout(a: Tensor, b: Tensor) -> tuple[int, int, int]:
 
     is_greater = a_shape[1] > b_shape[1]
 
-    a_row, b_row = (b.get_size(), a_shape[2]) if is_greater else (a.get_size(), b_shape[2])
+    size = max(a.get_size(), b.get_size())
+    a_row, b_row = (size if is_greater else a_shape[2], b_shape[2] if is_greater else size)
 
-    return max(a.get_size(), b.get_size()), a_row, b_row
+    return size, a_row, b_row
 
 def _hash(s: str) -> str:
     return blake2s(s.encode(), digest_size=6).hexdigest()
