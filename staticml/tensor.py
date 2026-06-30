@@ -109,6 +109,9 @@ def _broadcast_shape(a: Tensor | Number, b: Tensor | Number) -> tuple[int, ...]:
     b_shape = b.get_shape()
     max_dim = max(len(a._shape), len(b._shape))
 
+    if a_shape == b_shape:
+        return a_shape[3-max_dim:]
+
     least, most = (a_shape, b_shape) if a_shape < b_shape else (b_shape, a_shape)
 
     if least[2] == 1:

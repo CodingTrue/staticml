@@ -12,10 +12,13 @@ from staticml.tensor import Tensor
 def _operation_layout(a: Tensor, b: Tensor) -> tuple[int, int, int]:
     a_shape = a.get_shape()
     b_shape = b.get_shape()
+    size = max(a.get_size(), b.get_size())
+
+    if a_shape == b_shape:
+        return size, size, size
 
     is_greater = a_shape[1] > b_shape[1]
 
-    size = max(a.get_size(), b.get_size())
     a_row, b_row = (size if is_greater else a_shape[2], b_shape[2] if is_greater else size)
 
     return size, a_row, b_row
