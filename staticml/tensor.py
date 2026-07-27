@@ -15,8 +15,8 @@ class Tensor:
         self._data = np.asarray(data, dtype=np.float32)
         self._has_data = data is not None
 
-        self._args = args
-        self._is_static = self._args is not None
+        self._args = args or tuple()
+        self._is_static = len(self._args) == 0
 
     def __add__(self, other):
         return Tensor(data=None, args=(TensorOperation.ADD, self, other))
