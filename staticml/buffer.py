@@ -48,7 +48,7 @@ class Buffer:
         self._device: Device = None
 
     def __repr__(self):
-        return f"Buffer('{self._name}')"
+        return f"Buffer('{self.name}')"
 
     def _check_init(self, state: bool):
         state_check = state == self.is_initialized
