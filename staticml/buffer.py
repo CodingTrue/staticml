@@ -21,8 +21,9 @@ class BufferView:
     offset: int = 0
 
     def write(self, data, offset: int = 0) -> BufferView:
-        if len(data) + offset + self.offset > self.size:
+        if len(data) + offset > self.size:
             raise RuntimeError('View is writing to indices exceeding the allowed range')
+        self.buffer.write(data=data, offset=offset + self.offset)
         return self
 
     def read(self, size: int = 0, offset: int = 0) -> np.ndarray:
