@@ -25,7 +25,8 @@ class BufferView:
             raise RuntimeError('View is writing to indices exceeding the allowed range')
         return self
 
-    def read(self, size: int, offset: int = 0) -> np.ndarray:
+    def read(self, size: int = 0, offset: int = 0) -> np.ndarray:
+        size = self._size if size == 0 else size
         if size + offset > self.size:
             raise RuntimeError('View is reading from indices exceeding the allowed range')
         return self.buffer.read(size=size, offset=offset + self.offset)
@@ -114,8 +115,9 @@ class Buffer:
 
         return self
 
-    def read(self, size: int, offset: int = 0) -> np.ndarray:
+    def read(self, size: int = 0, offset: int = 0) -> np.ndarray:
         self._check_init(state=True)
+        size = self._size if size == 0 else size
 
         if size + offset > self._size:
             raise ValueError(
@@ -132,7 +134,9 @@ class Buffer:
 
         return _data
 
-    def view(self, size: int, offset: int = 0) -> BufferView:
+    def view(self, size: int = 0, offset: int = 0) -> BufferView:
+        size = self._size if size == 0 else size
+
         if size + offset > self._size:
             raise ValueError("Can't return view that has a bigger range than the buffer itself")
 
