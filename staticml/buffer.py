@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 import pyopencl as cl
 
@@ -11,6 +13,22 @@ BASE_DTYPE: DType = uint32
 class ASQ(Enum):
     GLOBAL = '__global'
     CONSTANT = '__constant'
+
+@dataclass
+class BufferView:
+    buffer: Buffer
+    size: int
+    offset: int = 0
+
+    def write(self, data, offset: int = 0) -> BufferView:
+        if len(data) + offset + self.offset > self.size:
+            raise RuntimeError('View is writing to indices exceeding the allowed range')
+        return self
+
+    def read(self, size: int, offset: int = 0) -> np.ndarray:
+        if size + offset > self.size:
+            raise RuntimeError('View is reading from indices exceeding the allowed range')
+        return self.buffer.read(size=size, offset=offset + self.offset)
 
 class Buffer:
     def __init__(self, name: str = '', asq: ASQ = ASQ.GLOBAL):
@@ -113,6 +131,16 @@ class Buffer:
         )
 
         return _data
+
+    def view(self, size: int, offset: int = 0) -> BufferView:
+        if size + offset > self._size:
+            raise ValueError("Can't return view that has a bigger range than the buffer itself")
+
+        return BufferView(
+            buffer=self,
+            size=size,
+            offset=offset
+        )
 
     @property
     def size(self) -> int:
