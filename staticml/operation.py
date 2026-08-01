@@ -68,7 +68,7 @@ class Operation:
         arg_strings = [arg.call_line for arg in self.args]
 
         return '\n'.join((
-            f'void {self.name}_{hash(self):0x}(',
+            f'{self.name}_{hash(self):0x}(',
             indent(',\n'.join(arg_strings), '\t'),
             ');'
         ))
