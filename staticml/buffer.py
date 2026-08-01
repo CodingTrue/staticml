@@ -101,7 +101,7 @@ class Buffer:
     def write(self, data, offset: int = 0) -> Buffer:
         self._check_init(state=True)
 
-        _data = np.asarray(data, dtype=BASE_DTYPE.dtype)
+        _data = np.asarray(data).view(dtype=BASE_DTYPE.dtype)
 
         if _data.size + offset > self._size:
             raise ValueError(
