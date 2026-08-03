@@ -4,6 +4,8 @@ from enum import Enum
 from typing import Any
 
 
+type TensorArg = Tensor | Number
+
 class TensorOperation(Enum):
     ADD = '_add'
     SUB = '_sub'
@@ -11,7 +13,7 @@ class TensorOperation(Enum):
     DIV = '_div'
 
 class Tensor:
-    def __init__(self, data: Any | None = None, args: tuple[Any] | None = None):
+    def __init__(self, data: Any | None = None, args: tuple[TensorArg] | None = None):
         self._data = np.asarray(data, dtype=np.float32)
         self._has_data = data is not None
 
@@ -30,10 +32,14 @@ class Tensor:
     def __truediv__(self, other):
         return Tensor(data=None, args=(TensorOperation.DIV, self, other))
 
+    def __rsub__(self, other):
+        return Tensor(data=None, args=(TensorOperation.SUB, other, self))
+
+    def __rtruediv__(self, other):
+        return Tensor(data=None, args=(TensorOperation.DIV, other, self))
+
     __radd__ = __add__
-    __rsub__ = __sub__
     __rmul__ = __mul__
-    __rtruediv__ = __truediv__
 
     @property
     def size(self) -> int:

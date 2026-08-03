@@ -1,0 +1,160 @@
+from dataclasses import dataclass
+from numbers import Number
+from typing import Callable
+
+from staticml.common import AXBYOperation, AXBOperation, Allocator
+from staticml.buffer import BufferView
+from staticml.operation import Operation
+from staticml.program import LaunchConfig
+from staticml.tensor import Tensor, TensorOperation
+
+
+type TensorArg = Tensor | Number
+
+@dataclass
+class LoweringContext:
+    a: TensorArg
+    b: TensorArg
+    a_and_b_tensors: bool
+    aligned_a: Tensor
+    aligned_b: TensorArg
+    view_callback: Callable[[Tensor], BufferView]
+    allocator: Allocator
+    common_size: int
+
+    out_view: BufferView = None
+    out_operation: Operation = None
+    out_launch_config: LaunchConfig = None
+
+    def get_view(self, tensor: Tensor) -> BufferView:
+        return self.view_callback(tensor)
+
+    @property
+    def simple_view(self) -> BufferView:
+        v = self.allocator.allocate(size=self.common_size)
+
+        self.out_view = v
+        return v
+
+def _get_common_size(views: Iterable[BufferView]):
+    return max(view.size for view in views)
+
+def _align_scalar(a: TensorArg, b: TensorArg) -> tuple[Tensor, TensorArg]:
+    if isinstance(a, Number):
+        return b, a
+    return a, b
+
+def _handle_add(context: LoweringContext):
+    if context.a_and_b_tensors:
+        context.out_operation = AXBYOperation(
+            a=1, b=1,
+            x=context.get_view(tensor=context.a),
+            y=context.get_view(tensor=context.b),
+            out=context.simple_view,
+            symbol='+'
+        )
+    else:
+        context.out_operation = AXBOperation(
+            a=1, b=context.aligned_b,
+            x=context.get_view(tensor=context.aligned_a),
+            out=context.simple_view,
+            symbol='*'
+        )
+
+def _handle_sub(context: LoweringContext):
+    if context.a_and_b_tensors:
+        context.out_operation = AXBYOperation(
+            a=1, b=-1,
+            x=context.get_view(tensor=context.a),
+            y=context.get_view(tensor=context.b),
+            out=context.simple_view,
+            symbol='+'
+        )
+    else:
+        if isinstance(context.a, Number):
+            a_sign, b_sign = -1, 1
+        else:
+            a_sign, b_sign = 1, -1
+
+        context.out_operation = AXBOperation(
+            a=a_sign, b=context.aligned_b * b_sign,
+            x=context.get_view(tensor=context.aligned_a),
+            out=context.simple_view,
+            symbol='*'
+        )
+
+def _handle_mul(context: LoweringContext):
+    if context.a_and_b_tensors:
+        context.out_operation = AXBYOperation(
+            a=1, b=1,
+            x=context.get_view(tensor=context.a),
+            y=context.get_view(tensor=context.b),
+            out=context.simple_view,
+            symbol='*'
+        )
+    else:
+        context.out_operation = AXBOperation(
+            a=context.aligned_b, b=0,
+            x=context.get_view(tensor=context.aligned_a),
+            out=context.simple_view,
+            symbol='*'
+        )
+
+def _handle_div(context: LoweringContext):
+    if context.a_and_b_tensors:
+        context.out_operation = AXBYOperation(
+            a=1, b=1,
+            x=context.get_view(tensor=context.a),
+            y=context.get_view(tensor=context.b),
+            out=context.simple_view,
+            symbol='/'
+        )
+    else:
+        symbol = '*'
+        if isinstance(context.b, Number):
+            scalar = 1 / context.b
+        else:
+            scalar = context.a
+            symbol = '/'
+
+        context.out_operation = AXBOperation(
+            a=scalar, b=0,
+            x=context.get_view(tensor=context.aligned_a),
+            out=context.simple_view,
+            symbol=symbol
+        )
+
+HANDLES = {
+    TensorOperation.ADD: _handle_add,
+    TensorOperation.SUB: _handle_sub,
+    TensorOperation.MUL: _handle_mul,
+    TensorOperation.DIV: _handle_div,
+}
+
+def lower_tensor(
+        tensor: Tensor,
+        view_callback: Callable[[Tensor], BufferView],
+        allocator: Allocator
+) -> LoweringContext:
+    to, *args = tensor.args
+
+    if len(args) != 2:
+        raise RuntimeError('Tensor args must contain exactly two operands')
+
+    a, b, aligned_a, aligned_b = *args, *_align_scalar(*args)
+
+    lc = LoweringContext(
+        a=a, b=b,
+        a_and_b_tensors=all(Tensor.is_tensor(o=arg) for arg in (a, b)),
+        aligned_a=aligned_a, aligned_b=aligned_b,
+        view_callback=view_callback,
+        allocator=allocator,
+        common_size=_get_common_size(views=(view_callback(arg) for arg in (a, b) if Tensor.is_tensor(o=arg)))
+    )
+
+    HANDLES[to](lc)
+
+    if not lc.out_launch_config:
+        lc.out_launch_config = LaunchConfig(x=lc.common_size)
+
+    return lc
