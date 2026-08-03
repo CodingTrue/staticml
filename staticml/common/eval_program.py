@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from staticml.buffer import Buffer, ASQ, BufferView
 from staticml.common import Allocator, lower_tensor, LoweringContext
+from staticml.device import Device
 from staticml.operation import Operation
 from staticml.program import Program, Kernel, LaunchConfig
 from staticml.tensor import Tensor
@@ -36,12 +37,21 @@ class TensorEvaluationProgram(Program):
         self.allocate_tensors()
         self.generate_kernels()
 
+        super().__init__(kernels=self.kernels)
+
+    def build(self, device: Device | None = None) -> TensorEvaluationProgram:
+        if not self.operations:
+            return self
+
         self.static_buffer.init()
         self.dynamic_buffer.init()
 
-        super().__init__(kernels=self.kernels)
+        return super().build(device)
 
     def run(self) -> TensorEvaluationProgram:
+        if not self.operations:
+            return self
+
         for tensor in self.static_tensors:
             view = self.get_tensor_view(tensor=tensor)
             view.write(data=tensor._data)
