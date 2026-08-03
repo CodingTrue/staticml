@@ -14,7 +14,7 @@ class ASQ(Enum):
     GLOBAL = '__global'
     CONSTANT = '__constant'
 
-@dataclass
+@dataclass(frozen=True)
 class BufferView:
     buffer: Buffer
     size: int
