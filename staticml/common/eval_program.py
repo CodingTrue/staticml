@@ -19,6 +19,7 @@ class OperationEntry:
 class TensorEvaluationProgram(Program):
     def __init__(self, tensor: Tensor):
         self.tensor_map: dict[Tensor, BufferView] = {}
+        self.tensor_lifetimes: dict[Tensor, list[Tensor]] = {}
         self.operations: list[OperationEntry] = []
 
         self.static_tensors: list[Tensor] = []
@@ -40,11 +41,13 @@ class TensorEvaluationProgram(Program):
         super().__init__(kernels=self.kernels)
 
     def build(self, device: Device | None = None) -> TensorEvaluationProgram:
+        device = device or Device.active()
+
         if not self.operations:
             return self
 
-        self.static_buffer.init()
-        self.dynamic_buffer.init()
+        self.static_buffer.set_size(size=self.static_allocator.get_max_size()).init(device=device)
+        self.dynamic_buffer.set_size(size=self.dynamic_allocator.get_max_size()).init(device=device)
 
         return super().build(device)
 
@@ -84,9 +87,14 @@ class TensorEvaluationProgram(Program):
             self.static_tensors.append(tensor)
             return
 
+        self.tensor_lifetimes[tensor] = []
+
         for arg in tensor.args:
             if not Tensor.is_tensor(o=arg): continue
             self.build_graph(tensor=arg)
+
+            if arg.is_static: continue
+            self.tensor_lifetimes[tensor].append(arg)
 
         self.dynamic_tensors.append(tensor)
 
@@ -95,6 +103,10 @@ class TensorEvaluationProgram(Program):
             self.tensor_map[tensor] = self.static_allocator.allocate(size=tensor.size)
 
         for tensor in self.dynamic_tensors:
+            deaths = self.tensor_lifetimes[tensor]
+            for death in deaths:
+                self.dynamic_allocator.free(view=self.get_tensor_view(tensor=death))
+
             lc: LoweringContext = lower_tensor(
                 tensor=tensor,
                 view_callback=lambda t: self.get_tensor_view(tensor=t),
