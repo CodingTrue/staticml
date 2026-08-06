@@ -135,10 +135,10 @@ class Buffer:
 
         return _data
 
-    def view(self, size: int = 0, offset: int = 0) -> BufferView:
+    def view(self, size: int = 0, offset: int = 0, unsafe_view: bool = False) -> BufferView:
         size = self._size if size == 0 else size
 
-        if size + offset > self._size:
+        if size + offset > self._size and not unsafe_view:
             raise ValueError("Can't return view that has a bigger range than the buffer itself")
 
         return BufferView(
