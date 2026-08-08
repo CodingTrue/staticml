@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from numbers import Number
 from typing import Callable
 
-from staticml.common import AXBYOperation, AXBOperation, Allocator
+from staticml.common import AXBYOperation, AXBOperation, Allocator, MatmulOperation
 from staticml.buffer import BufferView
 from staticml.operation import Operation
 from staticml.program import LaunchConfig
@@ -13,6 +13,7 @@ type TensorArg = Tensor | Number
 
 @dataclass
 class LoweringContext:
+    tensor: Tensor
     a: TensorArg
     b: TensorArg
     a_and_b_tensors: bool
@@ -124,11 +125,26 @@ def _handle_div(context: LoweringContext):
             symbol=symbol
         )
 
+def _handle_matmul(context: LoweringContext):
+    shape = context.tensor.shape
+    out_view = context.allocator.allocate(size=shape.x * shape.y)
+
+    context.out_operation = MatmulOperation(
+        x=context.get_view(tensor=context.a),
+        y=context.get_view(tensor=context.b),
+        out_shape=shape,
+        out=out_view
+    )
+
+    context.out_view = out_view
+    context.out_launch_config = LaunchConfig(x=shape.x, y=shape.y)
+
 HANDLES = {
     TensorOperation.ADD: _handle_add,
     TensorOperation.SUB: _handle_sub,
     TensorOperation.MUL: _handle_mul,
     TensorOperation.DIV: _handle_div,
+    TensorOperation.MATMUL: _handle_matmul,
 }
 
 def lower_tensor(
@@ -144,6 +160,7 @@ def lower_tensor(
     a, b, aligned_a, aligned_b = *args, *_align_scalar(*args)
 
     lc = LoweringContext(
+        tensor=tensor,
         a=a, b=b,
         a_and_b_tensors=all(Tensor.is_tensor(o=arg) for arg in (a, b)),
         aligned_a=aligned_a, aligned_b=aligned_b,

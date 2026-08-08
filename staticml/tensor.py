@@ -16,6 +16,7 @@ class TensorOperation(Enum):
     SUB = '_sub'
     MUL = '_mul'
     DIV = '_div'
+    MATMUL = '_matmul'
 
 @dataclass
 class TensorShape:
@@ -54,6 +55,19 @@ class Tensor:
 
     def __rtruediv__(self, other):
         return Tensor(data=None, args=(TensorOperation.DIV, other, self))
+
+    def __matmul__(self, other):
+        if not Tensor.is_tensor(o=other):
+            raise RuntimeError(f"Can't matmul tensor with type {type(other)}")
+
+        if self.shape.x != other.shape.y or self.shape.z != other.shape.z:
+            raise RuntimeError(f"Can't matmul tensors with mismatched shapes of {self.shape} and {other.shape}")
+
+        shape = TensorShape(
+            x=other.shape.x,
+            y=self.shape.y,
+        )
+        return Tensor(data=None, args=(TensorOperation.MATMUL, self, other), shape=shape)
 
     __radd__ = __add__
     __rmul__ = __mul__
