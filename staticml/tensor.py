@@ -68,7 +68,7 @@ class Tensor:
 
     @property
     def shape(self) -> TensorShape:
-        return TensorShape(*self._data.shape) if self._has_data else self._shape
+        return TensorShape(*self._data.shape[::-1]) if self._has_data else self._shape
 
     @property
     def args(self) -> tuple[Any]:
