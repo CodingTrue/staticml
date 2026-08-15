@@ -24,6 +24,9 @@ class TensorShape:
     y: int = 1
     z: int = 1
 
+    def as_tuple(self) -> tuple[int, int, int]:
+        return self.x, self.y, self.z
+
 class Tensor:
     def __init__(
             self,
