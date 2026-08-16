@@ -6,8 +6,7 @@ from staticml.common import AXBYOperation, AXBOperation, Allocator, MatmulOperat
 from staticml.buffer import BufferView
 from staticml.operation import Operation
 from staticml.program import LaunchConfig
-from staticml.tensor import Tensor, TensorOperation
-
+from staticml.tensor import Tensor, TensorOperation, TensorShape
 
 type TensorArg = Tensor | Number
 
@@ -47,13 +46,20 @@ def _align_scalar(a: TensorArg, b: TensorArg) -> tuple[Tensor, TensorArg]:
 
 def _handle_add(context: LoweringContext):
     if context.a_and_b_tensors:
+        out_shape = max(context.a.shape.as_tuple(), context.b.shape.as_tuple())
+
         context.out_operation = AXBYOperation(
             a=1, b=1,
             x=context.get_view(tensor=context.a),
             y=context.get_view(tensor=context.b),
             out=context.simple_view,
+            x_shape=context.a.shape,
+            y_shape=context.b.shape,
+            out_shape=TensorShape(*out_shape),
             symbol='+'
         )
+
+        context.out_launch_config = LaunchConfig(*out_shape)
     else:
         context.out_operation = AXBOperation(
             a=1, b=context.aligned_b,
@@ -64,13 +70,20 @@ def _handle_add(context: LoweringContext):
 
 def _handle_sub(context: LoweringContext):
     if context.a_and_b_tensors:
+        out_shape = max(context.a.shape.as_tuple(), context.b.shape.as_tuple())
+
         context.out_operation = AXBYOperation(
             a=1, b=-1,
             x=context.get_view(tensor=context.a),
             y=context.get_view(tensor=context.b),
             out=context.simple_view,
+            x_shape=context.a.shape,
+            y_shape=context.b.shape,
+            out_shape=TensorShape(*out_shape),
             symbol='+'
         )
+
+        context.out_launch_config = LaunchConfig(*out_shape)
     else:
         if isinstance(context.a, Number):
             a_sign, b_sign = -1, 1
@@ -86,13 +99,20 @@ def _handle_sub(context: LoweringContext):
 
 def _handle_mul(context: LoweringContext):
     if context.a_and_b_tensors:
+        out_shape = max(context.a.shape.as_tuple(), context.b.shape.as_tuple())
+
         context.out_operation = AXBYOperation(
             a=1, b=1,
             x=context.get_view(tensor=context.a),
             y=context.get_view(tensor=context.b),
             out=context.simple_view,
+            x_shape=context.a.shape,
+            y_shape=context.b.shape,
+            out_shape=TensorShape(*out_shape),
             symbol='*'
         )
+
+        context.out_launch_config = LaunchConfig(*out_shape)
     else:
         context.out_operation = AXBOperation(
             a=context.aligned_b, b=0,
@@ -103,13 +123,20 @@ def _handle_mul(context: LoweringContext):
 
 def _handle_div(context: LoweringContext):
     if context.a_and_b_tensors:
+        out_shape = max(context.a.shape.as_tuple(), context.b.shape.as_tuple())
+
         context.out_operation = AXBYOperation(
             a=1, b=1,
             x=context.get_view(tensor=context.a),
             y=context.get_view(tensor=context.b),
             out=context.simple_view,
+            x_shape=context.a.shape,
+            y_shape=context.b.shape,
+            out_shape=TensorShape(*out_shape),
             symbol='/'
         )
+
+        context.out_launch_config = LaunchConfig(*out_shape)
     else:
         symbol = '*'
         if isinstance(context.b, Number):

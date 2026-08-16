@@ -27,6 +27,17 @@ class TensorShape:
     def as_tuple(self) -> tuple[int, int, int]:
         return self.x, self.y, self.z
 
+def _broadcast_shapes(left: TensorShape, right: TensorShape) -> TensorShape:
+    for l_dim, r_dim in zip(left.as_tuple(), right.as_tuple()):
+        if l_dim == r_dim or (l_dim == 1 or r_dim == 1): continue
+        raise ValueError(f"Operands could not be broadcasted together with shapes {left} and {right}")
+
+    return TensorShape(
+        x=right.x if left.x == 1 else left.x,
+        y=right.y if left.y == 1 else left.y,
+        z=right.z if left.z == 1 else left.z,
+    )
+
 class Tensor:
     def __init__(
             self,
@@ -42,22 +53,22 @@ class Tensor:
         self._is_static = len(self._args) == 0
 
     def __add__(self, other):
-        return Tensor(data=None, args=(TensorOperation.ADD, self, other))
+        return Tensor._common_new_tensor(self, other, TensorOperation.ADD)
 
     def __sub__(self, other):
-        return Tensor(data=None, args=(TensorOperation.SUB, self, other))
+        return Tensor._common_new_tensor(self, other, TensorOperation.SUB)
 
     def __mul__(self, other):
-        return Tensor(data=None, args=(TensorOperation.MUL, self, other))
+        return Tensor._common_new_tensor(self, other, TensorOperation.MUL)
 
     def __truediv__(self, other):
-        return Tensor(data=None, args=(TensorOperation.DIV, self, other))
+        return Tensor._common_new_tensor(self, other, TensorOperation.DIV)
 
     def __rsub__(self, other):
-        return Tensor(data=None, args=(TensorOperation.SUB, other, self))
+        return Tensor._common_new_tensor(other, self, TensorOperation.SUB)
 
     def __rtruediv__(self, other):
-        return Tensor(data=None, args=(TensorOperation.DIV, other, self))
+        return Tensor._common_new_tensor(other, self, TensorOperation.DIV)
 
     def __matmul__(self, other):
         if not Tensor.is_tensor(o=other):
@@ -98,3 +109,10 @@ class Tensor:
     @staticmethod
     def is_tensor(o: Any) -> bool:
         return isinstance(o, Tensor)
+
+    @staticmethod
+    def _common_new_tensor(left, right, op: TensorOperation) -> Tensor:
+        la, ra = (left, right) if Tensor.is_tensor(o=left) else (right, left)
+        shape = _broadcast_shapes(left=left.shape, right=right.shape) if Tensor.is_tensor(o=ra) else la.shape
+
+        return Tensor(data=None, args=(op, left, right), shape=shape)
