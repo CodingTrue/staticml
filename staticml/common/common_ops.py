@@ -86,5 +86,5 @@ class MatmulOperation(Operation):
             f'for (int i = 0; i < {out_shape.y}; i++)' ' {',
             f'  result += x[{x.offset} + i + yid * {out_shape.y}] * y[{y.offset} + xid + i * {out_shape.x}];',
             '}',
-            f'out[{out.offset} + yid + xid * {out_shape.y}] = result;'
+            f'out[{out.offset} + yid * {out_shape.x} + xid] = result;'
         ])
