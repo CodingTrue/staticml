@@ -53,8 +53,8 @@ def _handle_add(context: LoweringContext):
             x=context.get_view(tensor=context.a),
             y=context.get_view(tensor=context.b),
             out=context.simple_view,
-            x_shape=context.a.shape,
-            y_shape=context.b.shape,
+            x_strides=context.a.strides,
+            y_strides=context.b._strides,
             out_shape=TensorShape(*out_shape),
             symbol='+'
         )
@@ -77,8 +77,8 @@ def _handle_sub(context: LoweringContext):
             x=context.get_view(tensor=context.a),
             y=context.get_view(tensor=context.b),
             out=context.simple_view,
-            x_shape=context.a.shape,
-            y_shape=context.b.shape,
+            x_strides=context.a.strides,
+            y_strides=context.b._strides,
             out_shape=TensorShape(*out_shape),
             symbol='+'
         )
@@ -106,8 +106,8 @@ def _handle_mul(context: LoweringContext):
             x=context.get_view(tensor=context.a),
             y=context.get_view(tensor=context.b),
             out=context.simple_view,
-            x_shape=context.a.shape,
-            y_shape=context.b.shape,
+            x_strides=context.a.strides,
+            y_strides=context.b._strides,
             out_shape=TensorShape(*out_shape),
             symbol='*'
         )
@@ -130,8 +130,8 @@ def _handle_div(context: LoweringContext):
             x=context.get_view(tensor=context.a),
             y=context.get_view(tensor=context.b),
             out=context.simple_view,
-            x_shape=context.a.shape,
-            y_shape=context.b.shape,
+            x_strides=context.a.strides,
+            y_strides=context.b._strides,
             out_shape=TensorShape(*out_shape),
             symbol='/'
         )

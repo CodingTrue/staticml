@@ -10,9 +10,6 @@ from staticml.tensor import TensorShape
 def _get_common_size(views: Iterable[BufferView]):
     return max(view.size for view in views)
 
-def _broadcast_strides(input_shape: TensorShape) -> tuple[int, int]:
-    return 0 if input_shape.x == 1 else 1, 0 if input_shape.y == 1 else input_shape.x
-
 class AXBOperation(Operation):
     def __init__(
             self,
@@ -42,14 +39,12 @@ class AXBYOperation(Operation):
             b: Number,
             y: BufferView,
             out: BufferView,
-            x_shape: TensorShape,
-            y_shape: TensorShape,
+            x_strides: TensorShape,
+            y_strides: TensorShape,
             out_shape: TensorShape,
             symbol: str,
     ):
         # baked parameters will become a problem in the future once caching and proper operation-reuse is implemented
-        x_column_stride, x_row_stride = _broadcast_strides(x_shape)
-        y_column_stride, y_row_stride = _broadcast_strides(y_shape)
 
         super().__init__(name=f'axby', args=[
             OperationBufferArg(name='x', buffer=x.buffer, dtype=float32),
@@ -60,8 +55,8 @@ class AXBYOperation(Operation):
             'int yid = get_global_id(1);',
             f'if (xid >= {out_shape.x} || yid >= {out_shape.y}) return;',
             f'out[{out.offset} + yid * {out_shape.x} + xid] = ' 
-            f'({a} * x[{x.offset} + yid * {x_row_stride} + xid * {x_column_stride}]) {symbol} '
-            f'({b} * y[{y.offset} + yid * {y_row_stride} + xid * {y_column_stride}]);'
+            f'({a} * x[{x.offset} + yid * {x_strides.y} + xid * {x_strides.x}]) {symbol} '
+            f'({b} * y[{y.offset} + yid * {y_strides.y} + xid * {y_strides.x}]);'
         ])
 
 class MatmulOperation(Operation):

@@ -50,6 +50,7 @@ class Tensor:
 
         self._args = args or tuple()
         self._shape = shape or TensorShape(x=_get_common_size(args=self._args) if not self._has_data else 0)
+        self._strides = TensorShape(x=0 if self.shape.x == 1 else 1, y=0 if self.shape.y == 1 else self.shape.x, z=self.shape.x * self.shape.y)
         self._is_static = len(self._args) == 0
 
     def __add__(self, other):
@@ -97,6 +98,10 @@ class Tensor:
     @property
     def shape(self) -> TensorShape:
         return TensorShape(*self._data.shape[::-1]) if self._has_data else self._shape
+
+    @property
+    def strides(self) -> TensorShape:
+        return self._strides
 
     @property
     def args(self) -> tuple[Any]:
