@@ -2,11 +2,12 @@ from dataclasses import dataclass
 from numbers import Number
 from typing import Callable
 
-from staticml.common import AXBYOperation, AXBOperation, Allocator, MatmulOperation
+from staticml.common import CommonBinaryOperation, AXBOperation, Allocator, MatmulOperation
 from staticml.buffer import BufferView
 from staticml.operation import Operation
 from staticml.program import LaunchConfig
-from staticml.tensor import Tensor, TensorOperation, TensorShape
+from staticml.tensor import Tensor, TensorOperation
+
 
 type TensorArg = Tensor | Number
 
@@ -44,22 +45,22 @@ def _align_scalar(a: TensorArg, b: TensorArg) -> tuple[Tensor, TensorArg]:
         return b, a
     return a, b
 
+def _common_op(context: LoweringContext, symbol: str):
+    context.out_operation = CommonBinaryOperation(
+        x=context.get_view(tensor=context.a),
+        y=context.get_view(tensor=context.b),
+        out=context.simple_view,
+        x_tensor=context.a,
+        y_tensor=context.b,
+        out_tensor=context.tensor,
+        symbol=symbol
+    )
+
+    context.out_launch_config = LaunchConfig(*context.tensor.shape.as_tuple())
+
 def _handle_add(context: LoweringContext):
     if context.a_and_b_tensors:
-        out_shape = max(context.a.shape.as_tuple(), context.b.shape.as_tuple())
-
-        context.out_operation = AXBYOperation(
-            a=1, b=1,
-            x=context.get_view(tensor=context.a),
-            y=context.get_view(tensor=context.b),
-            out=context.simple_view,
-            x_strides=context.a.strides,
-            y_strides=context.b._strides,
-            out_shape=TensorShape(*out_shape),
-            symbol='+'
-        )
-
-        context.out_launch_config = LaunchConfig(*out_shape)
+        _common_op(context=context, symbol='+')
     else:
         context.out_operation = AXBOperation(
             a=1, b=context.aligned_b,
@@ -70,20 +71,7 @@ def _handle_add(context: LoweringContext):
 
 def _handle_sub(context: LoweringContext):
     if context.a_and_b_tensors:
-        out_shape = max(context.a.shape.as_tuple(), context.b.shape.as_tuple())
-
-        context.out_operation = AXBYOperation(
-            a=1, b=-1,
-            x=context.get_view(tensor=context.a),
-            y=context.get_view(tensor=context.b),
-            out=context.simple_view,
-            x_strides=context.a.strides,
-            y_strides=context.b._strides,
-            out_shape=TensorShape(*out_shape),
-            symbol='+'
-        )
-
-        context.out_launch_config = LaunchConfig(*out_shape)
+        _common_op(context=context, symbol='-')
     else:
         if isinstance(context.a, Number):
             a_sign, b_sign = -1, 1
@@ -99,20 +87,7 @@ def _handle_sub(context: LoweringContext):
 
 def _handle_mul(context: LoweringContext):
     if context.a_and_b_tensors:
-        out_shape = max(context.a.shape.as_tuple(), context.b.shape.as_tuple())
-
-        context.out_operation = AXBYOperation(
-            a=1, b=1,
-            x=context.get_view(tensor=context.a),
-            y=context.get_view(tensor=context.b),
-            out=context.simple_view,
-            x_strides=context.a.strides,
-            y_strides=context.b._strides,
-            out_shape=TensorShape(*out_shape),
-            symbol='*'
-        )
-
-        context.out_launch_config = LaunchConfig(*out_shape)
+        _common_op(context=context, symbol='*')
     else:
         context.out_operation = AXBOperation(
             a=context.aligned_b, b=0,
@@ -123,20 +98,7 @@ def _handle_mul(context: LoweringContext):
 
 def _handle_div(context: LoweringContext):
     if context.a_and_b_tensors:
-        out_shape = max(context.a.shape.as_tuple(), context.b.shape.as_tuple())
-
-        context.out_operation = AXBYOperation(
-            a=1, b=1,
-            x=context.get_view(tensor=context.a),
-            y=context.get_view(tensor=context.b),
-            out=context.simple_view,
-            x_strides=context.a.strides,
-            y_strides=context.b._strides,
-            out_shape=TensorShape(*out_shape),
-            symbol='/'
-        )
-
-        context.out_launch_config = LaunchConfig(*out_shape)
+        _common_op(context=context, symbol='/')
     else:
         symbol = '*'
         if isinstance(context.b, Number):
@@ -159,7 +121,7 @@ def _handle_matmul(context: LoweringContext):
     context.out_operation = MatmulOperation(
         x=context.get_view(tensor=context.a),
         y=context.get_view(tensor=context.b),
-        out_shape=shape,
+        out_tensor=context.tensor,
         out=out_view
     )
 
