@@ -3,8 +3,15 @@ from numbers import Number
 from staticml.buffer import BufferView
 from staticml.dtype import *
 from staticml.operation import Operation, OperationBufferArg
-from staticml.tensor import Tensor
+from staticml.tensor import Tensor, TensorShape
 
+
+def _normalize_strides(tensor: Tensor) -> TensorShape:
+    return TensorShape(
+        x=0 if tensor.shape.x == 1 else 1,
+        y=0 if tensor.shape.y == 1 else tensor.shape.x,
+        z=tensor.shape.x * tensor.shape.y
+    )
 
 class AXBOperation(Operation):
     def __init__(
@@ -39,8 +46,8 @@ class CommonBinaryOperation(Operation):
     ):
         # baked parameters will become a problem in the future once caching and proper operation-reuse is implemented
         out_shape = out_tensor.shape
-        x_strides = x_tensor.strides
-        y_strides = y_tensor.strides
+        x_strides = _normalize_strides(tensor=x_tensor)
+        y_strides = _normalize_strides(tensor=y_tensor)
 
         super().__init__(name=f'common_binary', args=[
             OperationBufferArg(name='x', buffer=x.buffer, dtype=float32),
