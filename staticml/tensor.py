@@ -5,11 +5,11 @@ import numpy as np
 from enum import Enum
 from typing import Any, Iterable
 
+from staticml.dtype import float32
+
 
 type TensorArg = Tensor | Number
 
-def _get_common_size(args: Iterable[TensorArg]) -> int:
-    return max(arg.size for arg in args if Tensor.is_tensor(o=arg))
 
 class TensorOperation(Enum):
     ADD = '_add'
@@ -43,15 +43,19 @@ class Tensor:
             self,
             data: Any | None = None,
             args: tuple[TensorArg] | None = None,
-            shape: TensorShape | None = None
+            shape: TensorShape | None = None,
+            strides: TensorShape | None = None
     ):
-        self._data = np.asarray(data, dtype=np.float32)
-        self._has_data = data is not None
+        self._data: np.ndarray = None
 
-        self._args = args or tuple()
-        self._shape = shape or TensorShape(x=_get_common_size(args=self._args) if not self._has_data else 0)
-        self._strides = TensorShape(x=0 if self.shape.x == 1 else 1, y=0 if self.shape.y == 1 else self.shape.x, z=self.shape.x * self.shape.y)
-        self._is_static = len(self._args) == 0
+        self.args: tuple = args or tuple()
+        self._shape: TensorShape = None
+        self._strides: TensorShape = None
+
+        if strides is None and isinstance(shape, TensorShape):
+            strides = TensorShape(x=1, y=shape.x, z=shape.x * shape.y)
+
+        self.set_data(data=np.asarray(data, dtype=float32.dtype), shape=shape, strides=strides)
 
     def __add__(self, other):
         return Tensor._common_new_tensor(self, other, TensorOperation.ADD)
@@ -87,29 +91,71 @@ class Tensor:
     __radd__ = __add__
     __rmul__ = __mul__
 
-    @property
-    def size(self) -> int:
-        return self._data.size if self._has_data else 0
+    def set_data(self, data: np.ndarray, shape: TensorShape | None, strides: TensorShape | None):
+        self._data = data
+
+        item_size = self._data.dtype.itemsize
+
+        self.shape = shape or TensorShape(*self._data.shape[::-1])
+        self.strides = strides or TensorShape(*tuple(x // item_size for x in self._data.strides[::-1]))
 
     @property
-    def has_data(self) -> bool:
-        return self._has_data
+    def data(self) -> np.ndarray:
+        return self._data
+
+    @data.setter
+    def data(self, value: Tensor | np.ndarray):
+        if Tensor.is_tensor(o=value):
+            self.set_data(data=value.data, shape=x.shape)
+        elif isinstance(value, np.ndarray):
+            self.set_data(data=value)
+        else:
+            raise ValueError(f"Tensor data can't be set to type of {type(value)}")
 
     @property
     def shape(self) -> TensorShape:
-        return TensorShape(*self._data.shape[::-1]) if self._has_data else self._shape
+        return self._shape
+
+    @shape.setter
+    def shape(self, value) -> TensorShape:
+        if isinstance(value, TensorShape):
+            self._shape = value
+        elif isinstance(value, tuple[int, ...]):
+            self._shape = TensorShape(*value)
+        else:
+            raise ValueError(f"Tensor shape can't be set to type of {type(value)}")
+
+        if self.has_data:
+            self._data.shape = self._shape.as_tuple()[::-1]
 
     @property
     def strides(self) -> TensorShape:
         return self._strides
 
+    @strides.setter
+    def strides(self, value) -> TensorShape:
+        if isinstance(value, TensorShape):
+            self._strides = value
+        elif isinstance(value, tuple):
+            self._strides = TensorShape(*value)
+        else:
+            raise ValueError(f"Tensor strides can't be set to type of {type(value)}")
+
+        if self.has_data:
+            item_size = self._data.dtype.itemsize
+            self._data.strides = tuple(x * item_size for x in self._strides.as_tuple()[::-1])
+
     @property
-    def args(self) -> tuple[Any]:
-        return self._args
+    def size(self) -> int:
+        return self._data.size if self.has_data else 0
+
+    @property
+    def has_data(self) -> bool:
+        return self._data.ndim != 0
 
     @property
     def is_static(self) -> bool:
-        return self._is_static
+        return len(self.args) == 0
 
     @staticmethod
     def is_tensor(o: Any) -> bool:
