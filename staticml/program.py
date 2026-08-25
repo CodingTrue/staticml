@@ -97,23 +97,26 @@ class Kernel:
 
 class Program:
     def __init__(self, kernels: list[Kernel] | None = None):
-        self._kernels = kernels or []
-        self._device = None
-
+        self.kernels = kernels or []
         self.kernel_profiles: dict[Kernel, ProfilingInfoGetter] = {}
+
+        self._device: cl.Device = None
 
     def build(self, device: Device | None = None) -> Program:
         device = device or Device.active()
 
-        for kernel in self._kernels:
+        for kernel in self.kernels:
             kernel.compile(device=device)
 
         self._device = device
         return self
 
     def run(self) -> Program:
+        if not self.is_built:
+            raise RuntimeError("Program is not built")
+
         events = {}
-        for kernel in self._kernels:
+        for kernel in self.kernels:
             events[kernel] = kernel.run()
 
         self._device.queue.finish()
@@ -139,3 +142,7 @@ class Program:
 
         full_time = sum([self.get_kernel_execution_time_ns(kernel=knl) for knl in self.kernel_profiles])
         return full_time
+
+    @property
+    def is_built(self) -> bool:
+        return self._device is not None
