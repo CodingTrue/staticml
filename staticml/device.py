@@ -3,9 +3,14 @@ from enum import Enum
 
 
 def _get_device_name(device: cl.Device) -> str:
+    name = ''
+
     if "Advanced Micro Devices, Inc." in device.vendor:
-        return device.board_name_amd
-    return device.name
+        name = device.board_name_amd
+    else:
+        name = device.name
+
+    return name.strip()
 
 class DeviceType(Enum):
     CPU = cl.device_type.CPU
