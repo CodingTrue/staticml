@@ -67,6 +67,8 @@ class MatmulOperation(Operation):
             self,
             x: BufferView,
             y: BufferView,
+            x_tensor: Tensor,
+            y_tensor: Tensor,
             out_tensor: Tensor,
             out: BufferView,
     ):
@@ -82,8 +84,8 @@ class MatmulOperation(Operation):
             'int yid = get_global_id(1);',
             f'if (xid >= {out_shape.x} || yid >= {out_shape.y}) return;',
             'float result = 0.0;',
-            f'for (int i = 0; i < {out_shape.y}; i++)' ' {',
-            f'  result += x[{x.offset} + i + yid * {out_shape.y}] * y[{y.offset} + xid + i * {out_shape.x}];',
+            f'for (int i = 0; i < {x_tensor.shape.x}; i++)' '{'
+            f'  result += x[{x.offset} + yid * {x_tensor.shape.x} + i] * y[{y.offset} + i * {y_tensor.shape.x} + xid];',
             '}',
             f'out[{out.offset} + yid * {out_shape.x} + xid] = result;'
         ])

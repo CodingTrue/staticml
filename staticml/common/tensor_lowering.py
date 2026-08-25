@@ -121,6 +121,8 @@ def _handle_matmul(context: LoweringContext):
     context.out_operation = MatmulOperation(
         x=context.get_view(tensor=context.a),
         y=context.get_view(tensor=context.b),
+        x_tensor=context.a,
+        y_tensor=context.b,
         out_tensor=context.tensor,
         out=out_view
     )
