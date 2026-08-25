@@ -23,14 +23,24 @@ class Device:
         self._type: DeviceType = DeviceType.CPU if self._device.type == DeviceType.CPU else DeviceType.GPU
         self._total_bytes = self._device.global_mem_size
 
+        self.profiling_enabled = False
+
     def __repr__(self):
         return f"Device('{self._name}', {self._total_bytes / 1024**3:0.2f} GB)"
 
     def use(self) -> Device:
         self._context = cl.Context(devices=[self._device])
-        self._queue = cl.CommandQueue(context=self._context, device=self._device)
+        self._queue = cl.CommandQueue(
+            context=self._context,
+            device=self._device,
+            properties=cl.command_queue_properties.PROFILING_ENABLE * self.profiling_enabled
+        )
 
         Device._active = self
+        return self
+
+    def with_profiling_enabled(self) -> Device:
+        self.profiling_enabled = True
         return self
 
     @classmethod

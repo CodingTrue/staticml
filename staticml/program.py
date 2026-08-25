@@ -1,4 +1,5 @@
 import pyopencl as cl
+from pyopencl._monkeypatch import ProfilingInfoGetter
 
 from textwrap import indent
 
@@ -73,12 +74,12 @@ class Kernel:
         self._device = device
         return self
 
-    def run(self):
+    def run(self) -> cl.Event:
         self._check_compiled_status()
         if self.launch_config is None:
             raise RuntimeError('Launch config is not set')
 
-        cl.enqueue_nd_range_kernel(
+        return cl.enqueue_nd_range_kernel(
             queue=self._device.queue,
             kernel=self._kernel,
             global_work_size=self.launch_config.as_tuple(),
@@ -99,6 +100,8 @@ class Program:
         self._kernels = kernels or []
         self._device = None
 
+        self.kernel_profiles: dict[Kernel, ProfilingInfoGetter] = {}
+
     def build(self, device: Device | None = None) -> Program:
         device = device or Device.active()
 
@@ -109,8 +112,30 @@ class Program:
         return self
 
     def run(self) -> Program:
+        events = {}
         for kernel in self._kernels:
-            kernel.run()
+            events[kernel] = kernel.run()
 
         self._device.queue.finish()
+
+        if self._device.profiling_enabled:
+            self.kernel_profiles = {k: event.profile for k, event in events.items()}
+
         return self
+
+    def get_kernel_execution_time_ns(self, kernel: Kernel) -> int:
+        if not kernel in self.kernel_profiles:
+            raise RuntimeError(f"Could not find profile for '{kernel}'")
+
+        profile = self.kernel_profiles[kernel]
+        return profile.end - profile.start
+
+    def get_execution_time_ns(self) -> int:
+        if not self._device.profiling_enabled:
+            raise RuntimeError(f"Profiling is not enabled on '{self._device}'")
+
+        if len(self.kernel_profiles) == 0:
+            raise RuntimeError(f"Kernel profiles are empty")
+
+        full_time = sum([self.get_kernel_execution_time_ns(kernel=knl) for knl in self.kernel_profiles])
+        return full_time
