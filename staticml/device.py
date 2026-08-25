@@ -20,13 +20,9 @@ class Device:
     _active: Device | None = None
 
     def __init__(self, device: cl.Device):
-        self._device: cl.Device = device
+        self.device: cl.Device = device
         self._context: cl.Context = None
         self._queue: cl.CommandQueue = None
-
-        self._name = _get_device_name(device=self._device)
-        self._type: DeviceType = DeviceType.CPU if self._device.type == DeviceType.CPU else DeviceType.GPU
-        self._total_bytes = self._device.global_mem_size
 
         self.profiling_enabled = False
 
@@ -34,10 +30,10 @@ class Device:
         return f"Device('{self._name}', {self._total_bytes / 1024**3:0.2f} GB)"
 
     def use(self) -> Device:
-        self._context = cl.Context(devices=[self._device])
+        self._context = cl.Context(devices=[self.device])
         self._queue = cl.CommandQueue(
             context=self._context,
-            device=self._device,
+            device=self.device,
             properties=cl.command_queue_properties.PROFILING_ENABLE * self.profiling_enabled
         )
 
@@ -56,11 +52,11 @@ class Device:
 
     @property
     def name(self) -> str:
-        return self._name
+        return _get_device_name(device=self.device)
 
     @property
     def type(self) -> DeviceType:
-        return self._type
+        return DeviceType.CPU if self._device.type == DeviceType.CPU else DeviceType.GPU
 
     @property
     def context(self) -> cl.Context:
