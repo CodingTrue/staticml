@@ -13,7 +13,7 @@ def _normalize_strides(tensor: Tensor) -> Shape:
     return Shape(
         x=0 if shape_infl.x == 1 else 1,
         y=0 if shape_infl.y == 1 else tensor.shape.x,
-        z=tensor.shape.x * tensor.shape.y
+        z=0 if shape_infl.z == 1 else tensor.shape.x * tensor.shape.y
     )
 
 class AXBOperation(Operation):
@@ -48,7 +48,7 @@ class CommonBinaryOperation(Operation):
             symbol: str,
     ):
         # baked parameters will become a problem in the future once caching and proper operation-reuse is implemented
-        out_shape = out_tensor.shape
+        out_shape = out_tensor.shape.inflated
         x_strides = _normalize_strides(tensor=x_tensor)
         y_strides = _normalize_strides(tensor=y_tensor)
 
@@ -59,10 +59,11 @@ class CommonBinaryOperation(Operation):
         ], body=[
             'int xid = get_global_id(0);',
             'int yid = get_global_id(1);',
-            f'if (xid >= {out_shape.x} || yid >= {out_shape.y}) return;',
-            f'out[{out.offset} + yid * {out_shape.x} + xid] = ' 
-            f'x[{x.offset} + yid * {x_strides.y} + xid * {x_strides.x}] {symbol} '
-            f'y[{y.offset} + yid * {y_strides.y} + xid * {y_strides.x}];'
+            'int zid = get_global_id(2);',
+            f'if (xid >= {out_shape.x} || yid >= {out_shape.y} || zid >= {out_shape.z}) return;',
+            f'out[{out.offset} + zid * {out_shape.y * out_shape.x} + yid * {out_shape.x} + xid] = '
+            f'x[{x.offset} + zid * {x_strides.z} + yid * {x_strides.y} + xid * {x_strides.x}] {symbol} '
+            f'y[{y.offset} + zid * {y_strides.z} + yid * {y_strides.y} + xid * {y_strides.x}];'
         ])
 
 class MatmulOperation(Operation):
@@ -76,7 +77,9 @@ class MatmulOperation(Operation):
             out: BufferView,
     ):
         # baked parameters will become a problem in the future once caching and proper operation-reuse is implemented
-        out_shape = out_tensor.shape
+        out_shape = out_tensor.shape.inflated
+        x_strides = _normalize_strides(x_tensor)
+        y_strides = _normalize_strides(y_tensor)
 
         super().__init__(name=f'matmul', args=[
             OperationBufferArg(name='x', buffer=x.buffer, dtype=float32),
@@ -85,10 +88,15 @@ class MatmulOperation(Operation):
         ], body=[
             'int xid = get_global_id(0);'
             'int yid = get_global_id(1);',
-            f'if (xid >= {out_shape.x} || yid >= {out_shape.y}) return;',
+            'int zid = get_global_id(2);',
+            f'if (xid >= {out_shape.x} || yid >= {out_shape.y} || zid >= {out_shape.z}) return;',
             'float result = 0.0;',
             f'for (int i = 0; i < {x_tensor.shape.x}; i++)' '{'
-            f'  result = fma(x[{x.offset} + yid * {x_tensor.shape.x} + i], y[{y.offset} + i * {y_tensor.shape.x} + xid], result);',
+            f'  result = fma(',
+            f'      x[{x.offset} + zid * {x_strides.z} + yid * {x_tensor.shape.x} + i],',
+            f'      y[{y.offset} + zid * {y_strides.z} + i * {y_tensor.shape.x} + xid],',
+            f'      result'
+            f'  );',
             '}',
-            f'out[{out.offset} + yid * {out_shape.x} + xid] = result;'
+            f'out[{out.offset} + zid * {out_shape.x * out_shape.y} + yid * {out_shape.x} + xid] = result;'
         ])
