@@ -85,7 +85,7 @@ class MatmulOperation(Operation):
             f'if (xid >= {out_shape.x} || yid >= {out_shape.y}) return;',
             'float result = 0.0;',
             f'for (int i = 0; i < {x_tensor.shape.x}; i++)' '{'
-            f'  result += x[{x.offset} + yid * {x_tensor.shape.x} + i] * y[{y.offset} + i * {y_tensor.shape.x} + xid];',
+            f'  result = fma(x[{x.offset} + yid * {x_tensor.shape.x} + i], y[{y.offset} + i * {y_tensor.shape.x} + xid], result);',
             '}',
             f'out[{out.offset} + yid * {out_shape.x} + xid] = result;'
         ])
