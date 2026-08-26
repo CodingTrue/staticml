@@ -6,16 +6,14 @@ from textwrap import indent
 from staticml.buffer import Buffer, BASE_DTYPE
 from staticml.device import Device
 from staticml.operation import Operation, OperationBufferArg
+from staticml.shape import Shape
 
 
-class LaunchConfig:
+class LaunchConfig(Shape):
     def __init__(self, x: int = 1, y: int = 1, z: int = 1):
         self.x = max(x, 1)
         self.y = max(y, 1)
         self.z = max(z, 1)
-
-    def as_tuple(self) -> tuple[int, int, int]:
-        return self.x, self.y, self.z
 
 class Kernel:
     def __init__(self, operations: list[Operation] | None = None, launch_config: LaunchConfig | None = None):

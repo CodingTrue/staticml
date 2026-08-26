@@ -115,8 +115,8 @@ def _handle_div(context: LoweringContext):
         )
 
 def _handle_matmul(context: LoweringContext):
-    shape = context.tensor.shape
-    out_view = context.allocator.allocate(size=shape.x * shape.y)
+    shape = context.tensor.shape.inflated
+    out_view = context.allocator.allocate(size=shape.x * shape.y * shape.z)
 
     context.out_operation = MatmulOperation(
         x=context.get_view(tensor=context.a),
@@ -128,7 +128,7 @@ def _handle_matmul(context: LoweringContext):
     )
 
     context.out_view = out_view
-    context.out_launch_config = LaunchConfig(x=shape.x, y=shape.y)
+    context.out_launch_config = LaunchConfig(x=shape.x, y=shape.y, z=shape.z)
 
 HANDLES = {
     TensorOperation.ADD: _handle_add,

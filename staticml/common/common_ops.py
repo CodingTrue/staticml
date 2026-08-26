@@ -3,13 +3,16 @@ from numbers import Number
 from staticml.buffer import BufferView
 from staticml.dtype import *
 from staticml.operation import Operation, OperationBufferArg
-from staticml.tensor import Tensor, TensorShape
+from staticml.shape import Shape
+from staticml.tensor import Tensor
 
 
-def _normalize_strides(tensor: Tensor) -> TensorShape:
-    return TensorShape(
-        x=0 if tensor.shape.x == 1 else 1,
-        y=0 if tensor.shape.y == 1 else tensor.shape.x,
+def _normalize_strides(tensor: Tensor) -> Shape:
+    shape_infl = tensor.shape.inflated
+
+    return Shape(
+        x=0 if shape_infl.x == 1 else 1,
+        y=0 if shape_infl.y == 1 else tensor.shape.x,
         z=tensor.shape.x * tensor.shape.y
     )
 
