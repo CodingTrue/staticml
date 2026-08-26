@@ -35,6 +35,14 @@ class Shape:
             return tuple(x for x in (self.z, self.y, self.x) if x != -1)
         return tuple(x for x in (self.x, self.y, self.z) if x != -1)
 
+    @property
+    def inflated(self) -> Shape:
+        return Shape(
+            x=self.x if self.x != -1 else 1,
+            y=self.y if self.y != -1 else 1,
+            z=self.z if self.z != -1 else 1
+        )
+
     @staticmethod
     def from_numpy_shape(shape: tuple[int, ...]) -> Shape:
         if len(shape) > 3:
