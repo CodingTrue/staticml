@@ -116,7 +116,7 @@ class Tensor:
     def shape(self, value) -> Shape:
         if isinstance(value, Shape):
             self._shape = value
-        elif isinstance(value, tuple[int, ...]):
+        elif isinstance(value, tuple):
             self._shape = Shape(*value)
         else:
             raise ValueError(f"Tensor shape can't be set to type of {type(value)}")
