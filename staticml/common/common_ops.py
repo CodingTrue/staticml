@@ -11,9 +11,9 @@ def _normalize_strides(tensor: Tensor) -> Shape:
     shape_infl = tensor.shape.inflated
 
     return Shape(
-        x=0 if shape_infl.x == 1 else 1,
-        y=0 if shape_infl.y == 1 else tensor.shape.x,
-        z=0 if shape_infl.z == 1 else tensor.shape.x * tensor.shape.y
+        x=tensor.strides.x if shape_infl.x != 1 else 0,
+        y=tensor.strides.y if shape_infl.y != 1 else 0,
+        z=tensor.strides.z if shape_infl.z != 1 else 0
     )
 
 class AXBOperation(Operation):

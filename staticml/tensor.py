@@ -23,12 +23,10 @@ def _broadcast_shapes(left: Shape, right: Shape) -> Shape:
         if l_dim == r_dim or (l_dim == 1 or r_dim == 1): continue
         raise ValueError(f"Operands could not be broadcasted together with shapes {left} and {right}")
 
-    left_infl = left.inflated
-
     return Shape(
-        x=right.x if left_infl.x == 1 else left.x,
-        y=right.y if left_infl.y == 1 else left.y,
-        z=right.z if left_infl.z == 1 else left.z,
+        x=max(left.x, right.x),
+        y=max(left.y, right.y),
+        z=max(left.z, right.z),
     )
 
 class Tensor:
@@ -44,9 +42,6 @@ class Tensor:
         self.args: tuple = args or tuple()
         self._shape: Shape = None
         self._strides: Shape = None
-
-        if strides is None and isinstance(shape, Shape):
-            strides = Shape(x=1, y=shape.x, z=shape.x * shape.y)
 
         self.set_data(data=np.asarray(data, dtype=float32.dtype), shape=shape, strides=strides)
 
@@ -162,4 +157,10 @@ class Tensor:
         la, ra = (left, right) if Tensor.is_tensor(o=left) else (right, left)
         shape = _broadcast_shapes(left=left.shape, right=right.shape) if Tensor.is_tensor(o=ra) else la.shape
 
-        return Tensor(data=None, args=(op, left, right), shape=shape)
+        strides = Shape(
+            x=1 if shape.x != -1 else -1,
+            y=shape.x if shape.y != -1 else -1,
+            z=shape.x * shape.y if shape.z != -1 else -1
+        )
+
+        return Tensor(data=None, args=(op, left, right), shape=shape, strides=strides)
