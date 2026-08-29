@@ -142,10 +142,13 @@ class Tensor:
         la, ra = (left, right) if Tensor.is_tensor(o=left) else (right, left)
         shape = _broadcast_shapes(left=left.shape, right=right.shape) if Tensor.is_tensor(o=ra) else la.shape
 
-        strides = Shape(
-            x=1 if shape.x != -1 else -1,
-            y=shape.x if shape.y != -1 else -1,
-            z=shape.x * shape.y if shape.z != -1 else -1
-        )
+        if Tensor.is_tensor(o=la) and Tensor.is_tensor(o=ra):
+            ldim = la.shape.inflated.as_tuple()
+            rdim = ra.shape.inflated.as_tuple()
+            source_tensor = la if all(l >= r for l, r in zip(ldim, rdim)) else ra
+        else:
+            source_tensor = la
+
+        strides = source_tensor.strides
 
         return Tensor(data=None, args=(op, left, right), shape=shape, strides=strides)
