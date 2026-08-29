@@ -87,8 +87,18 @@ class Tensor:
 
         item_size = self._data.dtype.itemsize
 
-        self.shape = shape or Shape(*self._data.shape[::-1])
-        self.strides = strides or Shape(*tuple(x // item_size for x in self._data.strides[::-1]))
+        new_shape = shape or Shape(*self._data.shape[::-1])
+        new_strides = strides or Shape(*tuple(x // item_size for x in self._data.strides[::-1]))
+
+        if self.has_data:
+            self._data = np.lib.stride_tricks.as_strided(
+                self._data,
+                shape=new_shape.as_tuple(reverse=True),
+                strides=tuple(x * item_size for x in new_strides.as_tuple(reverse=True))
+            )
+
+        self._shape = new_shape
+        self._strides = new_strides
 
     @property
     def data(self) -> np.ndarray:
@@ -107,34 +117,9 @@ class Tensor:
     def shape(self) -> Shape:
         return self._shape
 
-    @shape.setter
-    def shape(self, value) -> Shape:
-        if isinstance(value, Shape):
-            self._shape = value
-        elif isinstance(value, tuple):
-            self._shape = Shape(*value)
-        else:
-            raise ValueError(f"Tensor shape can't be set to type of {type(value)}")
-
-        if self.has_data:
-            self._data.shape = self._shape.as_tuple(reverse=True)
-
     @property
     def strides(self) -> Shape:
         return self._strides
-
-    @strides.setter
-    def strides(self, value) -> Shape:
-        if isinstance(value, Shape):
-            self._strides = value
-        elif isinstance(value, tuple):
-            self._strides = Shape(*value)
-        else:
-            raise ValueError(f"Tensor strides can't be set to type of {type(value)}")
-
-        if self.has_data:
-            item_size = self._data.dtype.itemsize
-            self._data.strides = tuple(x * item_size for x in self._strides.as_tuple(reverse=True))
 
     @property
     def size(self) -> int:
