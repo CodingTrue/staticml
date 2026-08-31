@@ -27,7 +27,7 @@ class BufferView:
         return self
 
     def read(self, size: int = 0, offset: int = 0) -> np.ndarray:
-        size = self._size if size == 0 else size
+        size = self.size if size == 0 else size
         if size + offset > self.size:
             raise RuntimeError('View is reading from indices exceeding the allowed range')
         return self.buffer.read(size=size, offset=offset + self.offset)
