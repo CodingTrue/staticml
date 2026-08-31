@@ -114,7 +114,7 @@ class Tensor:
     @data.setter
     def data(self, value: Tensor | np.ndarray):
         if Tensor.is_tensor(o=value):
-            self.set_data(data=value.data, shape=x.shape)
+            self.set_data(data=value.data, shape=value.shape, strides=value.strides)
         elif isinstance(value, np.ndarray):
             self.set_data(data=value)
         else:
