@@ -103,10 +103,6 @@ class TensorEvaluationProgram(Program):
             self.tensor_map[tensor] = self.static_allocator.allocate(size=tensor.size)
 
         for tensor in self.dynamic_tensors:
-            deaths = self.tensor_lifetimes[tensor]
-            for death in deaths:
-                self.dynamic_allocator.free(view=self.get_tensor_view(tensor=death))
-
             lc: LoweringContext = lower_tensor(
                 tensor=tensor,
                 view_callback=lambda t: self.get_tensor_view(tensor=t),
@@ -118,3 +114,7 @@ class TensorEvaluationProgram(Program):
                 operation=lc.out_operation,
                 launch_config=lc.out_launch_config
             ))
+
+            deaths = self.tensor_lifetimes[tensor]
+            for death in deaths:
+                self.dynamic_allocator.free(view=self.get_tensor_view(tensor=death))
