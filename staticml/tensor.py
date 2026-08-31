@@ -77,7 +77,14 @@ class Tensor:
             y=self.shape.y,
             z=max(self.shape.z, other.shape.z)
         )
-        return Tensor(data=None, args=(TensorOperation.MATMUL, self, other), shape=shape)
+
+        strides = Shape(
+            x=1 if shape.x != -1 else -1,
+            y=shape.x if shape.y != -1 else -1,
+            z=shape.x * shape.y if shape.z != -1 else -1,
+        )
+
+        return Tensor(data=None, args=(TensorOperation.MATMUL, self, other), shape=shape, strides=strides)
 
     __radd__ = __add__
     __rmul__ = __mul__
