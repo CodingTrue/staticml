@@ -49,6 +49,7 @@ class CommonBinaryOperation(Operation):
     ):
         # baked parameters will become a problem in the future once caching and proper operation-reuse is implemented
         out_shape = out_tensor.shape.inflated
+        out_strides = _normalize_strides(out_tensor)
         x_strides = _normalize_strides(tensor=x_tensor)
         y_strides = _normalize_strides(tensor=y_tensor)
 
@@ -61,7 +62,7 @@ class CommonBinaryOperation(Operation):
             'int yid = get_global_id(1);',
             'int zid = get_global_id(2);',
             f'if (xid >= {out_shape.x} || yid >= {out_shape.y} || zid >= {out_shape.z}) return;',
-            f'out[{out.offset} + zid * {out_shape.y * out_shape.x} + yid * {out_shape.x} + xid] = '
+            f'out[{out.offset} + zid * {out_strides.z} + yid * {out_strides.y} + xid * {out_strides.x}] = '
             f'x[{x.offset} + zid * {x_strides.z} + yid * {x_strides.y} + xid * {x_strides.x}] {symbol} '
             f'y[{y.offset} + zid * {y_strides.z} + yid * {y_strides.y} + xid * {y_strides.x}];'
         ])
@@ -78,6 +79,7 @@ class MatmulOperation(Operation):
     ):
         # baked parameters will become a problem in the future once caching and proper operation-reuse is implemented
         out_shape = out_tensor.shape.inflated
+        out_strides = _normalize_strides(out_tensor)
         x_strides = _normalize_strides(x_tensor)
         y_strides = _normalize_strides(y_tensor)
 
@@ -98,5 +100,5 @@ class MatmulOperation(Operation):
             f'      result'
             f'  );',
             '}',
-            f'out[{out.offset} + zid * {out_shape.x * out_shape.y} + yid * {out_shape.x} + xid] = result;'
+            f'out[{out.offset} + zid * {out_strides.z} + yid * {out_strides.y} + xid * {out_strides.x}] = result;'
         ])
