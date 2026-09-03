@@ -95,8 +95,8 @@ class MatmulOperation(Operation):
             'float result = 0.0;',
             f'for (int i = 0; i < {x_tensor.shape.x}; i++)' '{'
             f'  result = fma(',
-            f'      x[{x.offset} + zid * {x_strides.z} + yid * {x_tensor.shape.x} + i],',
-            f'      y[{y.offset} + zid * {y_strides.z} + i * {y_tensor.shape.x} + xid],',
+            f'      x[{x.offset} + zid * {x_strides.z} + yid * {x_tensor.strides.y} + i * {x_strides.x}],',
+            f'      y[{y.offset} + zid * {y_strides.z} + i * {y_tensor.strides.y} + xid * {y_strides.x}],',
             f'      result',
             f'  );',
             '}',
