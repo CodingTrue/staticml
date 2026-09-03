@@ -46,8 +46,8 @@ class TensorEvaluationProgram(Program):
         if not self.operations:
             return self
 
-        self.static_buffer.set_size(size=self.static_allocator.get_max_size()).init(device=device)
-        self.dynamic_buffer.set_size(size=self.dynamic_allocator.get_max_size()).init(device=device)
+        self.static_buffer.set_size(size=self.static_allocator.max_size).init(device=device)
+        self.dynamic_buffer.set_size(size=self.dynamic_allocator.max_size).init(device=device)
 
         return super().build(device)
 

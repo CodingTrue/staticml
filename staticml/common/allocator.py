@@ -6,12 +6,7 @@ class Allocator:
         self.buffer = buffer
 
         self.views: list[BufferView] = []
-
-    def get_max_size(self) -> int:
-        if len(self.views) == 0: return 0
-
-        view = self.views[-1]
-        return view.offset + view.size
+        self.max_size = 0
 
     def allocate(self, size: int = 0):
         last_end = 0
@@ -29,6 +24,10 @@ class Allocator:
 
         view = self.buffer.view(size=size, offset=last_end, unsafe_view=True)
         self.views.insert(index, view)
+
+        last_view = self.views[-1]
+        self.max_size = max(self.max_size, last_view.size + last_view.offset)
+
         return view
 
     def free(self, view: BufferView):
