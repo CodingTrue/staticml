@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from staticml.buffer import Buffer, ASQ, BufferView
-from staticml.common import Allocator, lower_tensor, LoweringContext
+from staticml.common import Allocator, lower_tensor, LoweringContext, MatmulOperation
 from staticml.device import Device
 from staticml.operation import Operation
 from staticml.program import Program, Kernel, LaunchConfig
@@ -72,7 +72,7 @@ class TensorEvaluationProgram(Program):
         last_entry: OperationEntry = None
 
         for entry in self.operations:
-            if not last_entry or not last_entry.is_equal(entry):
+            if not last_entry or not last_entry.is_equal(entry) or isinstance(last_entry.operation, MatmulOperation):
                 knl = Kernel(launch_config=entry.launch_config)
                 self.kernels.append(knl)
 
