@@ -4,7 +4,6 @@ from staticml.buffer import Buffer, BufferView
 class Allocator:
     def __init__(self, buffer: Buffer):
         self.buffer = buffer
-        self.pointer = 0
 
         self.views: list[BufferView] = []
 
