@@ -17,6 +17,7 @@ class TensorOperation(Enum):
     MUL = '_mul'
     DIV = '_div'
     MATMUL = '_matmul'
+    TRANSPOSE = '_transpose'
 
 def _broadcast_shapes(left: Shape, right: Shape) -> Shape:
     for l_dim, r_dim in zip(left.as_tuple(), right.as_tuple()):
@@ -106,6 +107,21 @@ class Tensor:
 
         self._shape = new_shape
         self._strides = new_strides
+
+    def transpose(self, copy: bool = False) -> Tensor:
+        if self._shape.z != -1:
+            raise RuntimeError("A transpose on a 3D tensor is not allowed")
+
+        return Tensor(
+            data=self._data.copy() if copy else self._data.view(),
+            args=(TensorOperation.TRANSPOSE, self),
+            shape=Shape.from_numpy_shape(self._shape.as_tuple()),
+            strides=Shape.from_numpy_shape(self._strides.as_tuple())
+        )
+
+    @property
+    def T(self) -> Tensor:
+        return self.transpose(copy=False)
 
     @property
     def data(self) -> np.ndarray:

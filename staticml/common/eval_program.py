@@ -5,7 +5,7 @@ from staticml.common import Allocator, lower_tensor, LoweringContext, MatmulOper
 from staticml.device import Device
 from staticml.operation import Operation
 from staticml.program import Program, Kernel, LaunchConfig
-from staticml.tensor import Tensor
+from staticml.tensor import Tensor, TensorOperation
 
 
 @dataclass(frozen=True)
@@ -79,6 +79,19 @@ class TensorEvaluationProgram(Program):
             self.kernels[-1].add_operation(operation=entry.operation)
             last_entry = entry
 
+    def get_transpose_origin(self, tensor: Tensor) -> Tensor:
+        if tensor.args[0] == TensorOperation.TRANSPOSE and not tensor.args[1].is_static:
+            return self.get_transpose_origin(tensor=tensor.args[1])
+        return tensor
+
+    def move_lifetime(self, lifetime: Tensor, new_host: Tensor):
+        for tensor in self.tensor_lifetimes:
+            lifetimes = self.tensor_lifetimes[tensor]
+            if lifetime in lifetimes:
+                lifetimes.remove(lifetime)
+
+        self.tensor_lifetimes[new_host].append(lifetime)
+
     def build_graph(self, tensor: Tensor):
         if tensor in self.visited_tensors: return
         self.visited_tensors.add(tensor)
@@ -94,8 +107,13 @@ class TensorEvaluationProgram(Program):
             self.build_graph(tensor=arg)
 
             if arg.is_static: continue
-            self.tensor_lifetimes[tensor].append(arg)
 
+            if arg.args[0] == TensorOperation.TRANSPOSE:
+                origin = self.get_transpose_origin(tensor=arg)
+                self.move_lifetime(lifetime=origin, new_host=tensor)
+                continue
+
+            self.tensor_lifetimes[tensor].append(arg)
         self.dynamic_tensors.append(tensor)
 
     def allocate_tensors(self):
@@ -103,18 +121,24 @@ class TensorEvaluationProgram(Program):
             self.tensor_map[tensor] = self.static_allocator.allocate(size=tensor.size)
 
         for tensor in self.dynamic_tensors:
-            lc: LoweringContext = lower_tensor(
-                tensor=tensor,
-                view_callback=lambda t: self.get_tensor_view(tensor=t),
-                allocator=self.dynamic_allocator
-            )
+            if tensor.args[0] == TensorOperation.TRANSPOSE:
+                self.tensor_map[tensor] = self.get_tensor_view(tensor=tensor.args[1])
+            else:
+                lc: LoweringContext = lower_tensor(
+                    tensor=tensor,
+                    view_callback=lambda t: self.get_tensor_view(tensor=t),
+                    allocator=self.dynamic_allocator
+                )
 
-            self.tensor_map[tensor] = lc.out_view
-            self.operations.append(OperationEntry(
-                operation=lc.out_operation,
-                launch_config=lc.out_launch_config
-            ))
+                self.tensor_map[tensor] = lc.out_view
+                self.operations.append(OperationEntry(
+                    operation=lc.out_operation,
+                    launch_config=lc.out_launch_config
+                ))
 
             deaths = self.tensor_lifetimes[tensor]
             for death in deaths:
-                self.dynamic_allocator.free(view=self.get_tensor_view(tensor=death))
+                view = self.get_tensor_view(tensor=death)
+                if view not in self.dynamic_allocator.views: continue
+
+                self.dynamic_allocator.free(view=view)
