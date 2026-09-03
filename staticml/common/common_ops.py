@@ -88,7 +88,7 @@ class MatmulOperation(Operation):
             OperationBufferArg(name='y', buffer=y.buffer, dtype=float32),
             OperationBufferArg(name='out', buffer=out.buffer, dtype=float32),
         ], body=[
-            'int xid = get_global_id(0);'
+            'int xid = get_global_id(0);',
             'int yid = get_global_id(1);',
             'int zid = get_global_id(2);',
             f'if (xid >= {out_shape.x} || yid >= {out_shape.y} || zid >= {out_shape.z}) return;',
@@ -97,7 +97,7 @@ class MatmulOperation(Operation):
             f'  result = fma(',
             f'      x[{x.offset} + zid * {x_strides.z} + yid * {x_tensor.shape.x} + i],',
             f'      y[{y.offset} + zid * {y_strides.z} + i * {y_tensor.shape.x} + xid],',
-            f'      result'
+            f'      result',
             f'  );',
             '}',
             f'out[{out.offset} + zid * {out_strides.z} + yid * {out_strides.y} + xid * {out_strides.x}] = result;'
