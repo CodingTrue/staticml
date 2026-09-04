@@ -27,7 +27,7 @@ class Device:
         self.profiling_enabled = False
 
     def __repr__(self):
-        return f"Device('{self._name}', {self._total_bytes / 1024**3:0.2f} GB)"
+        return f"Device('{self.name}', {self.device.global_mem_size / 1024**3:0.2f} GB)"
 
     def use(self) -> Device:
         self._context = cl.Context(devices=[self.device])
