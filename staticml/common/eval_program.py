@@ -18,8 +18,11 @@ class OperationEntry:
 
 class TensorEvaluationProgram(Program):
     def __init__(self, tensor: Tensor):
+        self.root_tensor = tensor
+
         self.tensor_map: dict[Tensor, BufferView] = {}
         self.tensor_lifetimes: dict[Tensor, list[Tensor]] = {}
+        self.keep_alive_lifetimes: set[Tensor] = set([self.root_tensor])
         self.operations: list[OperationEntry] = []
 
         self.static_tensors: list[Tensor] = []
@@ -32,15 +35,14 @@ class TensorEvaluationProgram(Program):
         self.dynamic_allocator = Allocator(buffer=self.dynamic_buffer)
 
         self.visited_tensors: set[Tensor] = set()
-        self.kernels: list[Kernel] = []
 
-        self.build_graph(tensor=tensor)
+        super().__init__()
+
+    def build(self, device: Device | None = None) -> TensorEvaluationProgram:
+        self.build_graph(tensor=self.root_tensor)
         self.allocate_tensors()
         self.generate_kernels()
 
-        super().__init__(kernels=self.kernels)
-
-    def build(self, device: Device | None = None) -> TensorEvaluationProgram:
         device = device or Device.active()
 
         if not self.operations:
@@ -60,6 +62,11 @@ class TensorEvaluationProgram(Program):
             view.write(data=tensor._data)
 
         super().run()
+        return self
+
+    def keep_alive(self, tensor: Tensor) -> TensorEvaluationProgram:
+        if tensor not in self.keep_alive_lifetimes:
+            self.keep_alive_lifetimes.add(tensor)
         return self
 
     def get_tensor_view(self, tensor: Tensor) -> BufferView:
@@ -138,6 +145,8 @@ class TensorEvaluationProgram(Program):
 
             deaths = self.tensor_lifetimes[tensor]
             for death in deaths:
+                if death in self.keep_alive_lifetimes: continue
+
                 view = self.get_tensor_view(tensor=death)
                 if view not in self.dynamic_allocator.views: continue
 
