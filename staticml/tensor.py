@@ -90,7 +90,7 @@ class Tensor:
     __radd__ = __add__
     __rmul__ = __mul__
 
-    def set_data(self, data: np.ndarray, shape: Shape | None, strides: Shape | None):
+    def set_data(self, data: np.ndarray, shape: Shape | None = None, strides: Shape | None = None):
         self._data = data
 
         item_size = self._data.dtype.itemsize
