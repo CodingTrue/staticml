@@ -18,6 +18,7 @@ class TensorOperation(Enum):
     DIV = '_div'
     MATMUL = '_matmul'
     TRANSPOSE = '_transpose'
+    MAP = '_map'
 
 def _broadcast_shapes(left: Shape, right: Shape) -> Shape:
     for l_dim, r_dim in zip(left.as_tuple(), right.as_tuple()):
@@ -117,6 +118,14 @@ class Tensor:
             args=(TensorOperation.TRANSPOSE, self),
             shape=Shape.from_numpy_shape(self._shape.as_tuple()),
             strides=Shape.from_numpy_shape(self._strides.as_tuple())
+        )
+
+    def map(self, expression: str) -> Tensor:
+        return Tensor(
+            data=None,
+            args=(TensorOperation.MAP, self, expression),
+            shape=Shape(*self._shape.as_tuple()),
+            strides=Shape(*self._strides.as_tuple())
         )
 
     @property

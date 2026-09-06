@@ -1,3 +1,5 @@
+import re
+
 from numbers import Number
 
 from staticml.buffer import BufferView
@@ -101,4 +103,24 @@ class MatmulOperation(Operation):
             f'  );',
             '}',
             f'out[{out.offset} + zid * {out_strides.z} + yid * {out_strides.y} + xid * {out_strides.x}] = result;'
+        ])
+
+class MapOperation(Operation):
+    def __init__(
+            self,
+            x: BufferView,
+            expression: str,
+            out: BufferView,
+    ):
+        # baked parameters will become a problem in the future once caching and proper operation-reuse is implemented
+
+        expression = re.sub(r'(?<!\w)x(?!\w)', f'x[{x.offset} + xid]', expression)
+
+        super().__init__(name=f'map', args=[
+            OperationBufferArg(name='x', buffer=x.buffer, dtype=float32),
+            OperationBufferArg(name='out', buffer=out.buffer, dtype=float32),
+        ], body=[
+            'int xid = get_global_id(0);',
+            f'if (xid >= {x.size}) return;',
+            f'out[{out.offset} + xid] = {expression};'
         ])

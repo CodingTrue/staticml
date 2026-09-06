@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from numbers import Number
 from typing import Callable
 
-from staticml.common import CommonBinaryOperation, AXBOperation, Allocator, MatmulOperation
+from staticml.common import CommonBinaryOperation, AXBOperation, Allocator, MatmulOperation, MapOperation
 from staticml.buffer import BufferView
 from staticml.operation import Operation
 from staticml.program import LaunchConfig
@@ -130,25 +130,36 @@ def _handle_matmul(context: LoweringContext):
     context.out_view = out_view
     context.out_launch_config = LaunchConfig(x=shape.x, y=shape.y, z=shape.z)
 
+def _handle_map(context: LoweringContext):
+    context.out_operation = MapOperation(
+        x=context.get_view(tensor=context.a),
+        expression=context.b,
+        out=context.simple_view
+    )
+
 HANDLES = {
     TensorOperation.ADD: _handle_add,
     TensorOperation.SUB: _handle_sub,
     TensorOperation.MUL: _handle_mul,
     TensorOperation.DIV: _handle_div,
     TensorOperation.MATMUL: _handle_matmul,
+    TensorOperation.MAP: _handle_map
 }
 
 def lower_tensor(
         tensor: Tensor,
         view_callback: Callable[[Tensor], BufferView],
         allocator: Allocator
-) -> LoweringContext:
+) -> list[LoweringResult]:
     to, *args = tensor.args
 
-    if len(args) != 2:
-        raise RuntimeError('Tensor args must contain exactly two operands')
-
-    a, b, aligned_a, aligned_b = *args, *_align_scalar(*args)
+    if to in (
+            TensorOperation.ADD, TensorOperation.SUB, TensorOperation.MUL, TensorOperation.DIV,
+            TensorOperation.MATMUL
+    ):
+        a, b, aligned_a, aligned_b = *args, *_align_scalar(*args)
+    else:
+        a, b, aligned_a, aligned_b = args[0], args[1], None, None
 
     lc = LoweringContext(
         tensor=tensor,
