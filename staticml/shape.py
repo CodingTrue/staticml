@@ -35,6 +35,9 @@ class Shape:
             return tuple(x for x in (self.z, self.y, self.x) if x != -1)
         return tuple(x for x in (self.x, self.y, self.z) if x != -1)
 
+    def copy(self) -> Shape:
+        return Shape(x=self.x, y=self.y, z=self.z)
+
     @property
     def inflated(self) -> Shape:
         return Shape(
