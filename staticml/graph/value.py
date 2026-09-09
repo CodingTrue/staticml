@@ -38,6 +38,10 @@ class Value:
                 raise ValueError("Expected explicit strides when data is not given")
 
     @property
+    def data(self) -> np.ndarray:
+        return self._data
+
+    @property
     def size(self) -> int:
         if self.has_data:
             return self._data.size
