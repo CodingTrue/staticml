@@ -1,4 +1,5 @@
 from staticml.common.allocator import Allocator
+from staticml.graph.common_nodes import TransposeNode
 from staticml.graph.lowering import LoweringContext, OperationEntry
 from staticml.graph.graph import Graph
 from staticml.graph.value import Value
@@ -52,6 +53,11 @@ class GraphProgram(Program):
                     allocator = self.get_appropriate_allocator(target=value)
 
                     if value in self.memory_map: continue
+
+                    if isinstance(node, TransposeNode):
+                        self.memory_map[node.result] = self.memory_map.get(node.x)
+                        continue
+
                     self.memory_map[value] = allocator.allocate(size=value.size)
 
                 for output in node.outputs:
