@@ -1,5 +1,5 @@
 from staticml.graph.node import Node
-from staticml.graph.utils import _join_list, _indent_list
+from staticml.graph.utils import _indent_list
 
 
 class Graph:
