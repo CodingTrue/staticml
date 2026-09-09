@@ -40,6 +40,9 @@ class GraphProgram(Program):
         return self.static_allocator if target.is_static else self.dynamic_allocator
 
     def allocate_and_lower(self):
+        producer = {}
+        done = {}
+
         for graph in self.graphs:
             for node in graph.nodes:
                 for value in (*node.inputs, *node.outputs):
@@ -51,15 +54,41 @@ class GraphProgram(Program):
                     if value in self.memory_map: continue
                     self.memory_map[value] = allocator.allocate(size=value.size)
 
-                if len(node.outputs) == 0: continue
+                for output in node.outputs:
+                    producer[output] = node
 
-                lowering_context = LoweringContext(
-                    view_callback=lambda x: self.memory_map.get(x),
-                    operations=[]
-                )
+        # naive topogoly sort for conflicting graphs, should be reworked in the future
+        stop = False
+        last_producer_length = -1
 
-                node.lower(context=lowering_context)
-                self.operations.extend(lowering_context.operations)
+        while not stop:
+            for output, node in dict(producer).items():
+                dependencies = node.inputs
+
+                for x in dependencies:
+                    if x in done: continue
+                    if not x.is_static: continue
+                    done[x] = node
+
+                if all(x in done for x in dependencies):
+                    if output in done: continue
+                    del producer[output]
+                    done[output] = node
+
+            producer_length = len(producer)
+            stop = producer_length == 0 or last_producer_length == producer_length
+
+            last_producer_length = producer
+
+        targets = [node for output, node in done.items() if not output.is_static]
+        for node in targets:
+            lowering_context = LoweringContext(
+                view_callback=lambda x: self.memory_map.get(x),
+                operations=[]
+            )
+
+            node.lower(context=lowering_context)
+            self.operations.extend(lowering_context.operations)
 
     def init_buffers(self):
         self.static_buffer.set_size(size=max(self.static_allocator.max_size, 1)).init()
