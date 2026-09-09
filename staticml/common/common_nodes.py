@@ -2,8 +2,8 @@ import numpy as np
 
 from staticml.common import MatmulValueOperation, MapOperation
 from staticml.common.common_ops import CommonValueOperation
-from staticml.graph.graph import Node
-from staticml.graph.lowering import LoweringContext
+from staticml.common.lowering import LoweringContext
+from staticml.graph.node import Node
 from staticml.graph.value import Value
 from staticml.program import LaunchConfig
 from staticml.shape import Shape

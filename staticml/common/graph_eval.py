@@ -1,6 +1,6 @@
 from staticml.common.allocator import Allocator
-from staticml.graph.common_nodes import TransposeNode
-from staticml.graph.lowering import LoweringContext, OperationEntry
+from staticml.common.common_nodes import TransposeNode
+from staticml.common.lowering import LoweringContext, OperationEntry
 from staticml.graph.graph import Graph
 from staticml.graph.value import Value
 from staticml.buffer import Buffer, BufferView, ASQ

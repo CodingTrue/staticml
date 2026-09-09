@@ -3,7 +3,7 @@ from numbers import Number
 
 from typing import Any
 
-from staticml.graph.common_nodes import CommonABNode, MatmulNode, MapNode, TransposeNode
+from staticml.common.common_nodes import CommonABNode, MatmulNode, MapNode, TransposeNode
 from staticml.graph.graph import Graph
 from staticml.graph.value import Value
 from staticml.shape import Shape
